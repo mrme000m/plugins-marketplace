@@ -19,9 +19,11 @@
     {
       "name": "bitwarden-vault",
       "description": "Multi-account Bitwarden password manager with TOTP, secret injection, and vault export",
-      "source": "./skills/bitwarden-vault",
+      "source": "./",
       "strict": false,
-      "skills": []
+      "skills": [
+        "./skills/bitwarden-vault"
+      ]
     }
   ]
 }
