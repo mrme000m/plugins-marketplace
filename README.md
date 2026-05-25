@@ -14,6 +14,12 @@ To install specific plugins from this marketplace:
 /plugin install <plugin-name>@plugins-marketplace
 ```
 
+## Available Skills
+
+| Skill | Description | Trigger Keywords |
+|-------|-------------|------------------|
+| [bitwarden-vault](./skills/bitwarden-vault) | Multi-account Bitwarden password manager, TOTP, secret injection, vault export | `bitwarden`, `password`, `TOTP`, `2FA`, `inject secrets`, `vault`, `bw` |
+
 ## Contributing Skills
 
 1.  **Create a skill folder**: Create a new folder in `/skills/`.

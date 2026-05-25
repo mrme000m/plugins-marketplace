@@ -1,0 +1,10 @@
+License Terms
+
+This skill and its associated code are provided for the user's personal use.
+
+The bw-plugin binary and source code are tailored to the author's Bitwarden
+setup and are not open source. Use at your own risk.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.

@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "A standardized marketplace for agent skills and plugins",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "plugins": [
     {
@@ -14,7 +14,9 @@
       "description": "Initial set of plugins for the marketplace scaffold",
       "source": "./",
       "strict": false,
-      "skills": []
+      "skills": [
+        "./skills/bitwarden-vault"
+      ]
     }
   ]
 }
