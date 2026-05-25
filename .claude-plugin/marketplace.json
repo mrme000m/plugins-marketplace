@@ -14,9 +14,14 @@
       "description": "Initial set of plugins for the marketplace scaffold",
       "source": "./",
       "strict": false,
-      "skills": [
-        "./skills/bitwarden-vault"
-      ]
+      "skills": []
+    },
+    {
+      "name": "bitwarden-vault",
+      "description": "Multi-account Bitwarden password manager with TOTP, secret injection, and vault export",
+      "source": "./skills/bitwarden-vault",
+      "strict": false,
+      "skills": []
     }
   ]
 }
