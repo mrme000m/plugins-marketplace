@@ -13,20 +13,22 @@ import (
 // ── Status ──────────────────────────────────────────────────────
 
 func cmdStatus(jsonOutput bool) {
+	accounts := allAccounts()
 	if jsonOutput {
 		result := make(map[string]interface{})
-		state := loadState()
-		for _, accName := range accountOrder {
-			st, err := getStatus(accName)
+		for _, acc := range accounts {
+			st, err := getStatus(acc.ID)
 			if err != nil {
-				result[accName] = map[string]string{"status": "error", "error": err.Error()}
+				result[acc.ID] = map[string]string{"status": "error", "error": err.Error()}
 				continue
 			}
-			result[accName] = map[string]interface{}{
-				"status":  st.Status,
-				"email":   st.UserEmail,
-				"server":  st.ServerURL,
-				"active":  accName == state.ActiveAccount,
+			result[acc.ID] = map[string]interface{}{
+				"status": st.Status,
+				"email":  st.UserEmail,
+				"server": st.ServerURL,
+				"active": acc.Active,
+				"name":   acc.Name,
+				"plan":   acc.Plan,
 			}
 		}
 		data, _ := json.MarshalIndent(result, "", "  ")
@@ -34,31 +36,29 @@ func cmdStatus(jsonOutput bool) {
 		return
 	}
 
-	state := loadState()
 	fmt.Println()
 	fmt.Println("  ┌─ Bitwarden Multi-Account CLI ──────────┐")
 	fmt.Println()
 
-	for _, accName := range accountOrder {
-		acc, ok := getAccount(accName)
-		if !ok {
-			continue
-		}
-
+	for _, acc := range accounts {
 		marker := "○"
-		if accName == state.ActiveAccount {
+		if acc.Active {
 			marker = "●"
 		}
 
-		st, err := getStatus(accName)
+		st, err := getStatus(acc.ID)
 		statusStr := "unknown"
 		if err == nil && st != nil {
 			statusStr = st.Status
 		}
 
-		fmt.Printf("  %s %-10s  %s  [%s]\n", marker, accName, acc.Email, acc.Tag)
-		fmt.Printf("    %s\n", acc.Server)
-		fmt.Printf("    Status: %s\n", statusStr)
+		serverShort := serverHost(acc.Server)
+		if len(serverShort) > 35 {
+			serverShort = serverShort[:32] + "..."
+		}
+
+		fmt.Printf("  %s %-26s  %s  [%s]\n", marker, acc.ID, acc.Email, acc.Plan)
+		fmt.Printf("    %s | %s | Status: %s\n", acc.Name, serverShort, statusStr)
 		fmt.Println()
 	}
 
@@ -71,60 +71,18 @@ func cmdStatus(jsonOutput bool) {
 	fmt.Println("    bw-plugin inject       inject secrets into command")
 	fmt.Println("    bw-plugin export       export vault")
 	fmt.Println()
-	fmt.Println("  Direct: --account personal|work|api")
+	fmt.Println("  Direct: --account <id|email|legacy-name>")
 	fmt.Println()
-}
-
-// ── Account Switching ───────────────────────────────────────────
-
-func cmdSwitch(target string) {
-	state := loadState()
-
-	if target == "" {
-		target = nextAccount(state.ActiveAccount)
-	}
-
-	if !isAccountName(target) {
-		printError(fmt.Sprintf("Unknown account: %s", target))
-		fmt.Println("  Valid: personal | work | api")
-		os.Exit(1)
-	}
-
-	// Logout from current account (best effort)
-	if state.ActiveAccount != target {
-		_, _ = bwRunCombined(state.ActiveAccount, "logout")
-	}
-
-	state.ActiveAccount = target
-	_ = setServer(target)
-	_ = saveState(state)
-
-	acc, _ := getAccount(target)
-	printInfo(fmt.Sprintf("Active: %s (%s)", target, acc.Email))
-
-	// Check status of new account
-	st, err := getStatus(target)
-	if err == nil && st != nil {
-		switch st.Status {
-		case "unlocked":
-			printSuccess("Vault unlocked")
-		case "locked":
-			printWarning("Vault is locked. Run: bw-plugin unlock")
-		case "unauthenticated":
-			printWarning("Not logged in. Run: bw-plugin login")
-		}
-	}
 }
 
 // ── Login ───────────────────────────────────────────────────────
 
 func cmdLogin(apikey bool) {
-	state := loadState()
-	account := state.ActiveAccount
-	acc, _ := getAccount(account)
+	account := getActiveAccount().ID
+	acc, _ := getAccountByID(account)
 
 	if apikey {
-		printInfo(fmt.Sprintf("Logging into %s with API key...", account))
+		printInfo(fmt.Sprintf("Logging into %s with API key...", acc.DisplayName()))
 		if err := doAPIKeyLogin(account); err != nil {
 			printError(err.Error())
 			os.Exit(1)
@@ -136,21 +94,20 @@ func cmdLogin(apikey bool) {
 		return
 	}
 
-	printInfo(fmt.Sprintf("Logging into %s (%s)...", account, acc.Email))
+	printInfo(fmt.Sprintf("Logging into %s (%s)...", acc.DisplayName(), acc.Email))
 
-	password := getPasswordFromEnv(account)
+	password := getCredential(account, credPassword)
 	if err := doLogin(account, password); err != nil {
 		printError(err.Error())
 		fmt.Println()
 		fmt.Println("  Troubleshooting:")
-		fmt.Println("    - Check that the password env var is set:")
-		fmt.Printf("      export %s='your-password'\n", passwordEnv(account))
-		fmt.Println("    - Or use API key auth:")
-		fmt.Println("      bw-plugin login --apikey")
+		fmt.Println("    - Store password in keychain: bw-plugin auth setup")
+		fmt.Printf("    - Or set env var: export %s='your-password'\n", acc.PasswordEnv())
+		fmt.Println("    - Or use API key auth: bw-plugin login --apikey")
 		os.Exit(1)
 	}
 
-	printSuccess(fmt.Sprintf("Logged in to %s", account))
+	printSuccess(fmt.Sprintf("Logged in to %s", acc.DisplayName()))
 	fmt.Println()
 	fmt.Println("  Next: unlock the vault to get a session key")
 	fmt.Println("    bw-plugin unlock")
@@ -161,13 +118,13 @@ func cmdLogin(apikey bool) {
 // ── Unlock ──────────────────────────────────────────────────────
 
 func cmdUnlock(raw bool) {
-	state := loadState()
-	account := state.ActiveAccount
+	account := getActiveAccount().ID
+	acc, _ := getAccountByID(account)
 
-	password := getPasswordFromEnv(account)
+	password := getCredential(account, credPassword)
 	if password == "" {
-		printError(fmt.Sprintf("%s not set", passwordEnv(account)))
-		fmt.Println("  Set the password environment variable to unlock non-interactively")
+		printError(fmt.Sprintf("No password available for %s", acc.DisplayName()))
+		fmt.Println("  Store credentials: bw-plugin auth setup")
 		os.Exit(1)
 	}
 
@@ -181,7 +138,6 @@ func cmdUnlock(raw bool) {
 	}
 
 	if raw {
-		// Output only the session key (for shell capture)
 		fmt.Println(session)
 		return
 	}
@@ -198,42 +154,42 @@ func cmdUnlock(raw bool) {
 // ── Lock ────────────────────────────────────────────────────────
 
 func cmdLock() {
-	state := loadState()
-	account := state.ActiveAccount
+	account := getActiveAccount().ID
+	acc, _ := getAccountByID(account)
 
 	_, _ = bwRunCombined(account, "lock")
-	printSuccess(fmt.Sprintf("Locked %s vault", account))
+	printSuccess(fmt.Sprintf("Locked %s vault", acc.DisplayName()))
 }
 
 // ── Logout ──────────────────────────────────────────────────────
 
 func cmdLogout() {
-	state := loadState()
-	account := state.ActiveAccount
+	account := getActiveAccount().ID
+	acc, _ := getAccountByID(account)
 
 	_, _ = bwRunCombined(account, "logout")
-	printSuccess(fmt.Sprintf("Logged out from %s", account))
+	printSuccess(fmt.Sprintf("Logged out from %s", acc.DisplayName()))
 }
 
 // ── Sync ────────────────────────────────────────────────────────
 
 func cmdSync(all bool) {
 	if all {
-		for _, acc := range accountOrder {
-			printInfo(fmt.Sprintf("Syncing %s...", acc))
-			_, err := bwRunCombined(acc, "sync")
+		for _, acc := range allAccounts() {
+			printInfo(fmt.Sprintf("Syncing %s...", acc.DisplayName()))
+			_, err := bwRunCombined(acc.ID, "sync")
 			if err != nil {
-				printWarning(fmt.Sprintf("Sync failed for %s", acc))
+				printWarning(fmt.Sprintf("Sync failed for %s", acc.DisplayName()))
 			} else {
-				printSuccess(fmt.Sprintf("Synced %s", acc))
+				printSuccess(fmt.Sprintf("Synced %s", acc.DisplayName()))
 			}
 		}
 		return
 	}
 
-	state := loadState()
-	account := state.ActiveAccount
-	printInfo(fmt.Sprintf("Syncing %s...", account))
+	account := getActiveAccount().ID
+	acc, _ := getAccountByID(account)
+	printInfo(fmt.Sprintf("Syncing %s...", acc.DisplayName()))
 	out, err := bwRunCombined(account, "sync")
 	if err != nil {
 		printError(fmt.Sprintf("Sync failed: %s", string(out)))
@@ -245,8 +201,7 @@ func cmdSync(all bool) {
 // ── Validate ────────────────────────────────────────────────────
 
 func cmdValidate() {
-	state := loadState()
-	account := state.ActiveAccount
+	account := getActiveAccount().ID
 
 	st, err := getStatus(account)
 	if err != nil {
@@ -271,16 +226,22 @@ func cmdValidate() {
 
 // ── Search ──────────────────────────────────────────────────────
 
-func cmdSearch(query string, allAccounts bool, targetAccount string, jsonOutput bool) {
-	state := loadState()
-
-	var accounts []string
-	if allAccounts {
-		accounts = accountOrder
+func cmdSearch(query string, searchAll bool, targetAccount string, jsonOutput bool) {
+	var accountIDs []string
+	if searchAll {
+		for _, acc := range allAccounts() {
+			accountIDs = append(accountIDs, acc.ID)
+		}
 	} else if targetAccount != "" {
-		accounts = []string{targetAccount}
+		acc, ok := getAccount(targetAccount)
+		if ok {
+			accountIDs = []string{acc.ID}
+		} else {
+			printError(fmt.Sprintf("Unknown account: %s", targetAccount))
+			os.Exit(1)
+		}
 	} else {
-		accounts = []string{state.ActiveAccount}
+		accountIDs = []string{getActiveAccount().ID}
 	}
 
 	var results []struct {
@@ -288,13 +249,13 @@ func cmdSearch(query string, allAccounts bool, targetAccount string, jsonOutput 
 		Items   []BWItem `json:"items"`
 	}
 
-	for _, acc := range accounts {
-		session, err := ensureSession(acc)
+	for _, id := range accountIDs {
+		session, err := ensureSession(id)
 		if err != nil {
 			continue
 		}
 
-		items, err := searchItems(acc, session, query)
+		items, err := searchItems(id, session, query)
 		if err != nil {
 			continue
 		}
@@ -302,7 +263,7 @@ func cmdSearch(query string, allAccounts bool, targetAccount string, jsonOutput 
 		results = append(results, struct {
 			Account string   `json:"account"`
 			Items   []BWItem `json:"items"`
-		}{Account: acc, Items: items})
+		}{Account: id, Items: items})
 	}
 
 	if jsonOutput {
@@ -361,21 +322,20 @@ func cmdSearch(query string, allAccounts bool, targetAccount string, jsonOutput 
 
 // ── Inject ──────────────────────────────────────────────────────
 
-func cmdInject(itemName, account string, cmdArgs []string) {
-	state := loadState()
-	if account == "" {
-		account = state.ActiveAccount
+func cmdInject(itemName, accountID string, cmdArgs []string) {
+	if accountID == "" {
+		accountID = getActiveAccount().ID
 	}
 
-	session, err := ensureSession(account)
+	session, err := ensureSession(accountID)
 	if err != nil {
 		printError(err.Error())
 		os.Exit(1)
 	}
 
-	item, err := getItem(account, session, itemName)
+	item, err := getItem(accountID, session, itemName)
 	if err != nil {
-		printError(fmt.Sprintf("Item '%s' not found in %s vault", itemName, account))
+		printError(fmt.Sprintf("Item '%s' not found", itemName))
 		os.Exit(1)
 	}
 
@@ -439,19 +399,24 @@ func sanitizeEnvKey(s string) string {
 
 // ── TOTP ────────────────────────────────────────────────────────
 
-func cmdTOTP(itemName, account string, copy bool) {
-	state := loadState()
-	if account == "" {
-		account = state.ActiveAccount
+func cmdTOTP(itemName, accountID string, copy bool) {
+	if accountID == "" {
+		accountID = getActiveAccount().ID
+	}
+	acc, _ := getAccountByID(accountID)
+
+	// Check capability
+	if !acc.Capabilities.TOTP {
+		printWarning(fmt.Sprintf("Account %s may not have TOTP enabled (plan: %s)", acc.DisplayName(), acc.Plan))
 	}
 
-	session, err := ensureSession(account)
+	session, err := ensureSession(accountID)
 	if err != nil {
 		printError(err.Error())
 		os.Exit(1)
 	}
 
-	out, err := bwRunSession(account, session, "get", "totp", itemName)
+	out, err := bwRunSession(accountID, session, "get", "totp", itemName)
 	if err != nil {
 		printError(fmt.Sprintf("TOTP not found for '%s'", itemName))
 		os.Exit(1)
@@ -472,19 +437,17 @@ func cmdTOTP(itemName, account string, copy bool) {
 
 // ── Export ──────────────────────────────────────────────────────
 
-func cmdExport(account, outputDir string, encrypt bool) {
-	state := loadState()
-	if account == "" {
-		account = state.ActiveAccount
+func cmdExport(accountID, outputDir string, encrypt bool) {
+	if accountID == "" {
+		accountID = getActiveAccount().ID
 	}
-
-	acc, ok := getAccount(account)
+	acc, ok := getAccountByID(accountID)
 	if !ok {
-		printError(fmt.Sprintf("Unknown account: %s", account))
+		printError(fmt.Sprintf("Unknown account: %s", accountID))
 		os.Exit(1)
 	}
 
-	session, err := ensureSession(account)
+	session, err := ensureSession(accountID)
 	if err != nil {
 		printError(err.Error())
 		os.Exit(1)
@@ -496,13 +459,13 @@ func cmdExport(account, outputDir string, encrypt bool) {
 	}
 
 	ts := timestamp()
-	exportFile := filepath.Join(outputDir, fmt.Sprintf("bw-%s-%s.json", account, ts))
-	encFile := filepath.Join(outputDir, fmt.Sprintf("bw-%s-%s.enc", account, ts))
-	decryptScript := filepath.Join(outputDir, fmt.Sprintf("bw-%s-%s-decrypt.sh", account, ts))
+	exportFile := filepath.Join(outputDir, fmt.Sprintf("bw-%s-%s.json", accountID, ts))
+	encFile := filepath.Join(outputDir, fmt.Sprintf("bw-%s-%s.enc", accountID, ts))
+	decryptScript := filepath.Join(outputDir, fmt.Sprintf("bw-%s-%s-decrypt.sh", accountID, ts))
 
-	printInfo(fmt.Sprintf("Exporting %s vault...", account))
+	printInfo(fmt.Sprintf("Exporting %s vault...", acc.DisplayName()))
 
-	out, err := bwRunSessionCombined(account, session, "export", "--format", "json", "--output", exportFile)
+	out, err := bwRunSessionCombined(accountID, session, "export", "--format", "json", "--output", exportFile)
 	if err != nil {
 		printError(fmt.Sprintf("Export failed: %s", string(out)))
 		os.Exit(1)
@@ -512,7 +475,7 @@ func cmdExport(account, outputDir string, encrypt bool) {
 	if !encrypt {
 		fmt.Println()
 		fmt.Println("  ┌─ Export Complete ──────────────────────┐")
-		fmt.Printf("  │  Account: %s\n", account)
+		fmt.Printf("  │  Account: %s\n", acc.DisplayName())
 		fmt.Printf("  │  File:    %s\n", exportFile)
 		fmt.Println("  └────────────────────────────────────────┘")
 		return
@@ -546,14 +509,14 @@ func cmdExport(account, outputDir string, encrypt bool) {
 	os.Remove(exportFile)
 	printSuccess(fmt.Sprintf("Encrypted to %s", encFile))
 
-	script := generateDecryptScript(account, acc.Email, ts, encFile)
+	script := generateDecryptScript(accountID, acc.Email, ts, encFile)
 	if err := os.WriteFile(decryptScript, []byte(script), 0700); err != nil {
 		printWarning("Could not write decrypt script")
 	}
 
 	fmt.Println()
 	fmt.Println("  ┌─ Export Complete ──────────────────────┐")
-	fmt.Printf("  │  Account:   %s (%s)\n", account, acc.Email)
+	fmt.Printf("  │  Account:   %s (%s)\n", accountID, acc.Email)
 	fmt.Printf("  │  Encrypted: %s\n", encFile)
 	fmt.Printf("  │  Decrypt:   %s\n", decryptScript)
 	fmt.Println("  │  Algorithm: AES-256-CBC PBKDF2 1M iters│")
@@ -584,7 +547,7 @@ func cmdDecrypt(encFile, outputFile string) {
 	printSuccess(fmt.Sprintf("Decrypted to %s", outputFile))
 }
 
-func generateDecryptScript(account, email, timestamp, encFile string) string {
+func generateDecryptScript(accountID, email, timestamp, encFile string) string {
 	base := filepath.Base(encFile)
 	return fmt.Sprintf(`#!/bin/sh
 # Decrypt: %s
@@ -614,16 +577,15 @@ else
   openssl enc -d -aes-256-cbc -pbkdf2 -iter 1000000 -in "$ENCRYPTED" -out "$OUTPUT" -pass "pass:$PIN"
   echo "Decrypted to: $OUTPUT"
 fi
-`, base, account, email, encFile, base, account, timestamp)
+`, base, accountID, email, encFile, base, accountID, timestamp)
 }
 
 // ── Serve ───────────────────────────────────────────────────────
 
 func cmdServeStart(port int) {
-	state := loadState()
-	account := state.ActiveAccount
+	accountID := getActiveAccount().ID
 
-	session, err := ensureSession(account)
+	session, err := ensureSession(accountID)
 	if err != nil {
 		printError(err.Error())
 		os.Exit(1)
@@ -639,7 +601,7 @@ func cmdServeStart(port int) {
 	printInfo(fmt.Sprintf("Starting bw serve on port %d...", port))
 
 	cmd := exec.Command(findBW(), "serve", "--port", fmt.Sprintf("%d", port))
-	cmd.Env = bwEnvWithSession(account, session)
+	cmd.Env = bwEnvWithSession(accountID, session)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -734,17 +696,15 @@ func cmdBWS(args []string) {
 
 // ── bw Passthrough ──────────────────────────────────────────────
 
-func cmdBWPassthrough(args []string, account string) {
-	state := loadState()
-	if account == "" {
-		account = state.ActiveAccount
+func cmdBWPassthrough(args []string, accountID string) {
+	if accountID == "" {
+		accountID = getActiveAccount().ID
 	}
 
-	_ = setServer(account)
+	_ = setServer(accountID)
 
-	// Try the command directly first
 	cmd := exec.Command(findBW(), args...)
-	cmd.Env = bwEnv(account)
+	cmd.Env = bwEnv(accountID)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -754,17 +714,15 @@ func cmdBWPassthrough(args []string, account string) {
 		return
 	}
 
-	// If it failed, check if we need to unlock
-	st, _ := getStatus(account)
+	st, _ := getStatus(accountID)
 	if st != nil && st.Status == "locked" {
-		session, unlockErr := ensureSession(account)
+		session, unlockErr := ensureSession(accountID)
 		if unlockErr != nil {
 			printError(unlockErr.Error())
 			os.Exit(1)
 		}
-		// Retry with session
 		cmd = exec.Command(findBW(), args...)
-		cmd.Env = bwEnvWithSession(account, session)
+		cmd.Env = bwEnvWithSession(accountID, session)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -783,13 +741,12 @@ func cmdBWPassthrough(args []string, account string) {
 // ── Generate ────────────────────────────────────────────────────
 
 func cmdGenerate(args []string) {
-	state := loadState()
-	account := state.ActiveAccount
+	accountID := getActiveAccount().ID
 
-	_ = setServer(account)
+	_ = setServer(accountID)
 
 	cmdArgs := append([]string{"generate"}, args...)
-	out, err := bwRunCombined(account, cmdArgs...)
+	out, err := bwRunCombined(accountID, cmdArgs...)
 	if err != nil {
 		printError(string(out))
 		os.Exit(1)
@@ -802,15 +759,21 @@ func cmdGenerate(args []string) {
 func cmdProfileList() {
 	fmt.Println("  ┌─ Configured Accounts ──────────────────┐")
 	fmt.Println()
-	for _, name := range accountOrder {
-		acc, ok := getAccount(name)
-		if !ok {
-			continue
+	for _, acc := range allAccounts() {
+		marker := " "
+		if acc.Active {
+			marker = "●"
 		}
-		fmt.Printf("  %-10s %s\n", name+":", acc.Name)
+		fmt.Printf("  %s %-26s %s\n", marker, acc.ID, acc.Name)
 		fmt.Printf("    Email:  %s\n", acc.Email)
 		fmt.Printf("    Server: %s\n", acc.Server)
-		fmt.Printf("    Password env: %s_PASSWORD\n", acc.EnvPrefix)
+		fmt.Printf("    Plan:   %s | Type: %s\n", acc.Plan, acc.ServerType)
+		if acc.Org != nil {
+			fmt.Printf("    Org:    %s (%s)\n", acc.Org.Name, acc.Org.Role)
+		}
+		if len(acc.Tags) > 0 {
+			fmt.Printf("    Tags:   %s\n", strings.Join(acc.Tags, ", "))
+		}
 		fmt.Println()
 	}
 }

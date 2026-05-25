@@ -1,0 +1,21 @@
+# Agent workspace
+.claude/
+
+# Build artifacts
+src/bw-plugin
+*.o
+*.a
+
+# Temp files
+*.tmp
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml

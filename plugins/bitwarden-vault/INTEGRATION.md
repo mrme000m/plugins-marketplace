@@ -33,11 +33,13 @@ This document defines how `bw-plugin` integrates with AI agent platforms:
 
 ### Tools (token-efficient, focused)
 
+All vault tools support automatic authentication — no separate login/unlock step needed. Credentials are sourced from macOS Keychain (primary) or environment variables (fallback).
+
 | Tool | Input | Output | Tokens |
 |------|-------|--------|--------|
 | `bitwarden_status` | `{account?}` | `{account, status, email}` | ~50 |
-| `bitwarden_login` | `{account, method}` | `{success, message}` | ~30 |
-| `bitwarden_unlock` | `{account}` | `{success, session_key}` | ~30 |
+| `bitwarden_auth_setup` | `{}` | `{success, accounts_configured}` | ~30 |
+| `bitwarden_auth_test` | `{}` | `{accounts: [{name, has_password, has_api_key, auth_ok}]}` | ~100 |
 | `bitwarden_search` | `{account?, query}` | `{items: [{name, username, uri}]}` | ~200 |
 | `bitwarden_get` | `{account?, item_name, field?}` | `{value}` | ~50 |
 | `bitwarden_totp` | `{account?, item_name}` | `{code}` | ~30 |
@@ -86,7 +88,9 @@ The SKILL.md description field targets these conversation patterns:
 # ~/.codex/config.toml
 [mcp.servers.bitwarden]
 command = ["bw-plugin-mcp"]
-env = { BWP_PASSWORD = "", BWW_PASSWORD = "", BWA_PASSWORD = "" }
+# Credentials from macOS Keychain (via bw-plugin auth setup)
+# or set env vars as fallback:
+# env = { BWP_PASSWORD = "", BWW_PASSWORD = "", BWA_PASSWORD = "" }
 ```
 
 ## Opencode CLI Plugin
@@ -113,16 +117,17 @@ export function bwPlugin() {
 
 ## Token Budget Analysis
 
-| Operation | Old (shell scripts) | New (MCP + focused tools) | Savings |
+| Operation | Old (shell scripts) | New (MCP + auto-auth) | Savings |
 |-----------|--------------------|--------------------------|---------|
-| Status check | ~500 (full bw status JSON × 3) | ~150 (structured summary) | 70% |
-| Search | ~2000 (full items JSON) | ~300 (top-K summary) | 85% |
-| Get password | ~500 (full item JSON) | ~50 (just the value) | 90% |
-| Inject | ~1500 (env dump + item JSON) | ~200 (just env var names) | 87% |
+| Status check | ~500 (full bw status JSON x 3) | ~150 (structured summary) | 70% |
+| Search | ~2000 (full items JSON + manual login) | ~200 (auto-auth + top-K summary) | 90% |
+| Get password | ~500 (manual unlock + full item JSON) | ~50 (auto-auth + just the value) | 90% |
+| Inject | ~1500 (manual login + env dump) | ~200 (auto-auth + env var names) | 87% |
+| Auth test | N/A | ~100 (structured per-account results) | New |
 
 ## Implementation Priority
 
-1. **P0:** MCP server (stdio transport, 8 tools)
+1. **P0:** MCP server (stdio transport, 8 tools with auto-auth)
 2. **P1:** Updated Claude Code SKILL.md (auto-triggering + hooks)
 3. **P2:** Opencode TS plugin
 4. **P3:** Streamable HTTP transport for remote access

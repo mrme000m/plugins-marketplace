@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const version = "1.0.0"
+const version = "1.2.0"
 
 func main() {
 	// Check if invoked via symlink (bwp, bww, bwa)
@@ -24,18 +24,24 @@ func main() {
 
 	args := os.Args[1:]
 
-	// If invoked as bwp/bww/bwa with no args, show status for that account
+	// If invoked as bwp/bww/bwa with no args, show status
 	if preselectedAccount != "" && len(args) == 0 {
-		state := loadState()
-		state.ActiveAccount = preselectedAccount
-		_ = saveState(state)
+		acc, ok := getAccount(preselectedAccount)
+		if ok {
+			_ = setActiveAccount(acc.ID)
+		}
 		cmdStatus(false)
 		return
 	}
 
 	// If invoked as bwp/bww/bwa with args, passthrough to bw
 	if preselectedAccount != "" && len(args) > 0 {
-		cmdBWPassthrough(args, preselectedAccount)
+		acc, ok := getAccount(preselectedAccount)
+		if ok {
+			cmdBWPassthrough(args, acc.ID)
+		} else {
+			cmdBWPassthrough(args, preselectedAccount)
+		}
 		return
 	}
 
@@ -43,7 +49,6 @@ func main() {
 	var targetAccount string
 	var versionFlag bool
 
-	// Find first non-flag argument = subcommand, parse global flags before it
 	subcmdIdx := -1
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
@@ -52,7 +57,6 @@ func main() {
 		}
 	}
 
-	// Parse global flags and rebuild args without them
 	var filteredArgs []string
 	end := subcmdIdx
 	if end == -1 {
@@ -64,12 +68,12 @@ func main() {
 			case "--account", "-a":
 				if i+1 < len(args) {
 					targetAccount = args[i+1]
-					i++ // skip value too
+					i++
 				}
-				continue // don't add to filteredArgs
+				continue
 			case "--version", "-v":
 				versionFlag = true
-				continue // don't add to filteredArgs
+				continue
 			}
 		}
 		filteredArgs = append(filteredArgs, args[i])
@@ -83,7 +87,6 @@ func main() {
 		return
 	}
 
-	// Handle no args or --help as first arg
 	if len(args) == 0 {
 		cmdStatus(false)
 		return
@@ -93,30 +96,26 @@ func main() {
 		return
 	}
 
-	// Command dispatch
 	cmd := args[0]
 	cmdArgs := args[1:]
 
 	switch cmd {
-	// Status
 	case "status", "st":
 		jsonOut := hasFlag(cmdArgs, "-j", "--json")
 		cmdStatus(jsonOut)
 
-	// Account switching
 	case "switch", "s":
 		if targetAccount != "" {
-			cmdSwitch(targetAccount)
-		} else if len(cmdArgs) > 0 && isAccountName(cmdArgs[0]) {
-			cmdSwitch(cmdArgs[0])
+			cmdAccountSwitch(targetAccount)
+		} else if len(cmdArgs) > 0 {
+			cmdAccountSwitch(cmdArgs[0])
 		} else {
-			cmdSwitch("")
+			cmdAccountSwitch("")
 		}
 
 	case "personal", "work", "api":
-		cmdSwitch(cmd)
+		cmdAccountSwitch(cmd)
 
-	// Authentication
 	case "login":
 		apikey := hasFlag(cmdArgs, "--apikey", "-k")
 		cmdLogin(apikey)
@@ -131,21 +130,21 @@ func main() {
 	case "logout":
 		cmdLogout()
 
-	// Sync
 	case "sync":
 		all := hasFlag(cmdArgs, "--all", "-a")
 		cmdSync(all)
 
-	// Validation
 	case "validate", "check":
 		cmdValidate()
 
-	// Search
 	case "search":
 		searchArgs := parseSearchArgs(cmdArgs)
-		cmdSearch(searchArgs.query, searchArgs.all, searchArgs.account, searchArgs.json)
+		acc := targetAccount
+		if acc == "" {
+			acc = searchArgs.account
+		}
+		cmdSearch(searchArgs.query, searchArgs.all, acc, searchArgs.json)
 
-	// Inject
 	case "inject":
 		injectArgs := parseInjectArgs(cmdArgs)
 		if injectArgs.item == "" {
@@ -159,7 +158,6 @@ func main() {
 		}
 		cmdInject(injectArgs.item, acc, injectArgs.cmd)
 
-	// TOTP
 	case "totp", "t":
 		copyFlag := hasFlag(cmdArgs, "--copy", "-c")
 		itemName := ""
@@ -178,7 +176,6 @@ func main() {
 		acc := targetAccount
 		cmdTOTP(itemName, acc, copyFlag)
 
-	// Export
 	case "export", "e":
 		exportArgs := parseExportArgs(cmdArgs)
 		acc := targetAccount
@@ -187,7 +184,6 @@ func main() {
 		}
 		cmdExport(acc, exportArgs.output, exportArgs.encrypt)
 
-	// Decrypt
 	case "decrypt", "d":
 		if len(cmdArgs) < 1 {
 			printError("Encrypted file required")
@@ -200,7 +196,6 @@ func main() {
 		}
 		cmdDecrypt(cmdArgs[0], output)
 
-	// Serve
 	case "serve":
 		if len(cmdArgs) == 0 {
 			cmdServeStatus()
@@ -228,23 +223,119 @@ func main() {
 			os.Exit(1)
 		}
 
-	// BWS passthrough
+	case "auth":
+		if len(cmdArgs) == 0 {
+			cmdAuthTest()
+			return
+		}
+		switch cmdArgs[0] {
+		case "setup":
+			cmdAuthSetup()
+		case "login":
+			target := ""
+			if len(cmdArgs) > 1 {
+				target = cmdArgs[1]
+			}
+			cmdAuthLogin(target)
+		case "test":
+			cmdAuthTest()
+		case "show":
+			cmdAuthShow()
+		case "clean":
+			cmdAuthClean()
+		default:
+			printError(fmt.Sprintf("Unknown auth command: %s", cmdArgs[0]))
+			fmt.Println("  Usage: bw-plugin auth [setup|login|test|show|clean]")
+			os.Exit(1)
+		}
+
+	case "account":
+		if len(cmdArgs) == 0 {
+			cmdAccountList()
+			return
+		}
+		switch cmdArgs[0] {
+		case "list", "ls":
+			cmdAccountList()
+		case "add", "new":
+			cmdAccountAdd()
+		case "remove", "rm", "delete":
+			if len(cmdArgs) < 2 {
+				printError("Account ID required")
+				fmt.Println("  Usage: bw-plugin account remove <id>")
+				os.Exit(1)
+			}
+			cmdAccountRemove(cmdArgs[1])
+		case "info", "show":
+			if len(cmdArgs) < 2 {
+				cmdAccountInfo(getActiveAccount().ID)
+			} else {
+				cmdAccountInfo(cmdArgs[1])
+			}
+		case "edit":
+			if len(cmdArgs) < 2 {
+				cmdAccountEdit(getActiveAccount().ID)
+			} else {
+				cmdAccountEdit(cmdArgs[1])
+			}
+		case "discover", "sync":
+			cmdAccountDiscover()
+		default:
+			printError(fmt.Sprintf("Unknown account command: %s", cmdArgs[0]))
+			fmt.Println("  Usage: bw-plugin account [list|add|remove|info|edit|discover]")
+			os.Exit(1)
+		}
+
+	case "copy", "cp":
+		copyArgs := parseXferArgs(cmdArgs)
+		if copyArgs.item == "" {
+			printError("Item name required")
+			fmt.Println("  Usage: bw-plugin copy <item> --from <account> --to <account>")
+			os.Exit(1)
+		}
+		cmdCopySecret(copyArgs.item, copyArgs.from, copyArgs.to)
+
+	case "move", "mv":
+		moveArgs := parseXferArgs(cmdArgs)
+		if moveArgs.item == "" {
+			printError("Item name required")
+			fmt.Println("  Usage: bw-plugin move <item> --from <account> --to <account>")
+			os.Exit(1)
+		}
+		cmdMoveSecret(moveArgs.item, moveArgs.from, moveArgs.to)
+
+	case "share-list":
+		acc := targetAccount
+		if len(cmdArgs) > 0 {
+			acc = cmdArgs[0]
+		}
+		cmdShareList(acc)
+
+	case "sm-link":
+		acc := targetAccount
+		if len(cmdArgs) > 0 {
+			acc = cmdArgs[0]
+		}
+		if acc == "" {
+			acc = getActiveAccount().ID
+		}
+		cmdLinkSM(acc)
+
 	case "bws":
 		cmdBWS(cmdArgs)
 
-	// Generate
+	case "bws-setup":
+		cmdBWSSetupGo()
+
 	case "generate", "gen", "g":
 		cmdGenerate(cmdArgs)
 
-	// Profile
 	case "profile", "profiles":
 		cmdProfileList()
 
-	// Help
 	case "help", "--help", "-h":
 		printHelp()
 
-	// Unknown → passthrough to bw
 	default:
 		acc := targetAccount
 		cmdBWPassthrough(args, acc)
@@ -305,7 +396,6 @@ func parseInjectArgs(args []string) injectArgs {
 		}
 	}
 
-	// Parse flags in beforeSep
 	var rest []string
 	for i := 0; i < len(beforeSep); i++ {
 		switch beforeSep[i] {
@@ -356,6 +446,37 @@ func parseExportArgs(args []string) exportArgs {
 	return ea
 }
 
+type xferArgs struct {
+	item string
+	from string
+	to   string
+}
+
+func parseXferArgs(args []string) xferArgs {
+	xa := xferArgs{}
+	var rest []string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--from":
+			if i+1 < len(args) {
+				xa.from = args[i+1]
+				i++
+			}
+		case "--to":
+			if i+1 < len(args) {
+				xa.to = args[i+1]
+				i++
+			}
+		default:
+			rest = append(rest, args[i])
+		}
+	}
+	if len(rest) > 0 {
+		xa.item = rest[0]
+	}
+	return xa
+}
+
 // ── Helpers ─────────────────────────────────────────────────────
 
 func hasFlag(args []string, flags ...string) bool {
@@ -383,6 +504,21 @@ Usage:
   bw-plugin sync [--all]                 Sync vault(s)
   bw-plugin validate                     Check session validity
 
+Accounts:
+  bw-plugin account list                 List all configured accounts
+  bw-plugin account add                  Add a new account interactively
+  bw-plugin account remove <id>          Remove an account
+  bw-plugin account info [id]            Show account details + capabilities
+  bw-plugin account edit [id]            Edit account settings (OTP inbox, etc)
+  bw-plugin account discover             Scan vault for Bitwarden account items
+
+Auth (Keychain + Auto-Login + Email OTP):
+  bw-plugin auth setup                   Store credentials in Keychain
+  bw-plugin auth login [account]         Interactive login (handles OTP)
+  bw-plugin auth test                    Test all accounts auth flow
+  bw-plugin auth show                    Show stored credentials (masked)
+  bw-plugin auth clean                   Remove all stored credentials
+
 Vault Operations:
   bw-plugin search [-a] [-p account] <query>
                                          Search vault(s)
@@ -394,7 +530,16 @@ Vault Operations:
   bw-plugin decrypt <file.enc> [out.json]
                                          Decrypt export
 
+Cross-Account:
+  bw-plugin copy <item> --from <id> --to <id>
+                                         Copy item between accounts
+  bw-plugin move <item> --from <id> --to <id>
+                                         Move item between accounts
+  bw-plugin share-list [account]         List personal vs org-owned items
+
 Secrets Manager:
+  bw-plugin sm-link [account]            Link Secrets Manager machine account
+  bw-plugin bws-setup                    Interactive bws credential setup
   bw-plugin bws <command>                Pass through to bws CLI
                                          (run defaults to --no-inherit-env)
 
@@ -414,7 +559,7 @@ Account Aliases (symlinks):
   bwa <command>                          Run as API keys account
 
 Flags:
-  --account, -a <name>                   Target specific account
+  --account, -a <name>                   Target specific account (ID, email, or legacy name)
   --help, -h                             Show this help
   --version, -v                          Show version`)
 }

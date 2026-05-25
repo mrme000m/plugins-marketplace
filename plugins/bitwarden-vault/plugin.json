@@ -1,0 +1,177 @@
+{
+  "name": "bitwarden-vault",
+  "version": "1.2.0",
+  "description": "Multi-account Bitwarden password manager with TOTP generation, credential injection, vault search, encrypted export, Gmail OTP auto-fetch, and Secrets Manager (bws) integration",
+  "tools": [
+    {
+      "name": "bw_status",
+      "description": "Show Bitwarden vault status for all configured accounts",
+      "command": ["bw-plugin", "status", "-j"]
+    },
+    {
+      "name": "bw_search",
+      "description": "Search Bitwarden vault items by query",
+      "command": ["python3", "bw-plugin-wrapper.py", "bw-plugin", "search"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query string"
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "bw_totp",
+      "description": "Generate TOTP code for a Bitwarden item",
+      "command": ["python3", "bw-plugin-wrapper.py", "bw-plugin", "totp"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string",
+            "description": "Item name or ID"
+          }
+        },
+        "required": ["item"]
+      }
+    },
+    {
+      "name": "bw_switch",
+      "description": "Switch active Bitwarden account (personal, work, api)",
+      "command": ["python3", "bw-plugin-wrapper.py", "bw-plugin", "switch"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account name: personal, work, or api"
+          }
+        },
+        "required": ["account"]
+      }
+    },
+    {
+      "name": "bw_unlock",
+      "description": "Unlock Bitwarden vault and print raw session key",
+      "command": ["bw-plugin", "unlock", "--raw"]
+    },
+    {
+      "name": "bw_login",
+      "description": "Login to the active Bitwarden account",
+      "command": ["bw-plugin", "login"]
+    },
+    {
+      "name": "bw_export",
+      "description": "Export Bitwarden vault with optional encryption",
+      "command": ["python3", "bw-plugin-wrapper.py", "bw-plugin", "export"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account to export: personal, work, or api"
+          },
+          "output": {
+            "type": "string",
+            "description": "Output directory path"
+          }
+        }
+      }
+    },
+    {
+      "name": "bw_auth_setup",
+      "description": "Interactive setup: store master passwords, API keys, and Gmail app passwords in macOS Keychain",
+      "command": ["bw-plugin", "auth", "setup"]
+    },
+    {
+      "name": "bw_auth_test",
+      "description": "Test authentication for all configured accounts (auto-login + unlock)",
+      "command": ["bw-plugin", "auth", "test"]
+    },
+    {
+      "name": "bw_auth_show",
+      "description": "Show stored credentials (masked) for all accounts",
+      "command": ["bw-plugin", "auth", "show"]
+    },
+    {
+      "name": "bw_auth_login",
+      "description": "Interactive login with OTP support (auto-fetches from Gmail if app password stored)",
+      "command": ["bw-plugin", "auth", "login"]
+    },
+    {
+      "name": "bws_secret_list",
+      "description": "List secrets from Bitwarden Secrets Manager",
+      "command": ["python3", "bw-plugin-wrapper.py", "bws", "secret", "list"]
+    },
+    {
+      "name": "bws_secret_get",
+      "description": "Get a specific secret from Bitwarden Secrets Manager",
+      "command": ["python3", "bw-plugin-wrapper.py", "bws", "secret", "get"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "secret_id": {
+            "type": "string",
+            "description": "Secret UUID"
+          }
+        },
+        "required": ["secret_id"]
+      }
+    },
+    {
+      "name": "bws_secret_create",
+      "description": "Create a secret in Bitwarden Secrets Manager",
+      "command": ["python3", "bw-plugin-wrapper.py", "bws", "secret", "create"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Secret key/name"
+          },
+          "value": {
+            "type": "string",
+            "description": "Secret value"
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Project UUID"
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional note"
+          }
+        },
+        "required": ["key", "value", "project_id"]
+      }
+    },
+    {
+      "name": "bws_project_list",
+      "description": "List projects from Bitwarden Secrets Manager",
+      "command": ["python3", "bw-plugin-wrapper.py", "bws", "project", "list"]
+    },
+    {
+      "name": "bws_run",
+      "description": "Run a command with Bitwarden Secrets Manager secrets injected as env vars",
+      "command": ["python3", "bw-plugin-wrapper.py", "bws", "run"],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "Command to run with secrets injected"
+          }
+        },
+        "required": ["command"]
+      }
+    },
+    {
+      "name": "bws_setup",
+      "description": "Interactive setup for Bitwarden Secrets Manager credentials (access token + profile)",
+      "command": ["bw-plugin", "bws-setup"]
+    }
+  ]
+}

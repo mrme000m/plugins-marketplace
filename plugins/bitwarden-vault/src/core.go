@@ -61,38 +61,6 @@ func findBWS() string {
 	return "bws"
 }
 
-// ── Environment Builder ─────────────────────────────────────────
-
-// bwEnv returns the environment for running bw with a specific account.
-// It sets BITWARDENCLI_APPDATA_DIR and strips any conflicting BW_SESSION
-// to prevent cross-account session leakage.
-func bwEnv(account string) []string {
-	appdata := accountAppdataDir(account)
-	var filtered []string
-	hasAppdata := false
-	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "BITWARDENCLI_APPDATA_DIR=") {
-			filtered = append(filtered, "BITWARDENCLI_APPDATA_DIR="+appdata)
-			hasAppdata = true
-		} else if strings.HasPrefix(e, "BW_SESSION=") {
-			// Strip existing BW_SESSION — we'll set our own if needed
-			continue
-		} else {
-			filtered = append(filtered, e)
-		}
-	}
-	if !hasAppdata {
-		filtered = append(filtered, "BITWARDENCLI_APPDATA_DIR="+appdata)
-	}
-	return filtered
-}
-
-// bwEnvWithSession returns env with BW_SESSION injected
-func bwEnvWithSession(account, session string) []string {
-	env := bwEnv(account)
-	return append(env, "BW_SESSION="+session)
-}
-
 // ── bw Execution ────────────────────────────────────────────────
 
 func bwRun(account string, args ...string) ([]byte, error) {
@@ -133,6 +101,12 @@ type BWStatus struct {
 	UserEmail string `json:"userEmail"`
 	UserID    string `json:"userId"`
 	Status    string `json:"status"`
+}
+
+type BWFolder struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Object string `json:"object"`
 }
 
 type BWURI struct {
@@ -194,12 +168,12 @@ func statusIcon(status string) string {
 
 // ── Server Configuration ────────────────────────────────────────
 
-func setServer(account string) error {
-	acc, ok := getAccount(account)
+func setServer(accountID string) error {
+	acc, ok := getAccount(accountID)
 	if !ok {
-		return fmt.Errorf("unknown account: %s", account)
+		return fmt.Errorf("unknown account: %s", accountID)
 	}
-	_, _ = bwRunCombined(account, "config", "server", acc.Server)
+	_, _ = bwRunCombined(accountID, "config", "server", acc.Server)
 	return nil
 }
 
@@ -208,6 +182,8 @@ func setServer(account string) error {
 // ensureSession checks bw status and unlocks if necessary.
 // It returns a BW_SESSION string usable for vault operations.
 // The session is NOT persisted — it is derived on-demand.
+// Supports full auto-auth: if unauthenticated, will attempt login
+// using credentials from keychain or env vars.
 func ensureSession(account string) (string, error) {
 	st, err := getStatus(account)
 	if err != nil {
@@ -223,13 +199,14 @@ func ensureSession(account string) (string, error) {
 		fallthrough
 	case "locked":
 		// Logged in but vault locked — unlock to get session
-		password := getPasswordFromEnv(account)
+		password := getCredential(account, credPassword)
 		if password == "" {
-			return "", fmt.Errorf("vault is locked and %s is not set", passwordEnv(account))
+			return "", fmt.Errorf("vault is locked and no password available for %s", account)
 		}
 		return doUnlock(account, password)
 	case "unauthenticated":
-		return "", fmt.Errorf("not logged in. Run: bw-plugin login")
+		// Not logged in — attempt full auto-auth (login + unlock)
+		return ensureAuthFull(account)
 	default:
 		return "", fmt.Errorf("unknown vault status: %s", st.Status)
 	}
@@ -237,25 +214,24 @@ func ensureSession(account string) (string, error) {
 
 // ── Login Helpers ───────────────────────────────────────────────
 
-func doLogin(account string, password string) error {
-	acc, ok := getAccount(account)
+func doLogin(accountID string, password string) error {
+	acc, ok := getAccount(accountID)
 	if !ok {
-		return fmt.Errorf("unknown account: %s", account)
+		return fmt.Errorf("unknown account: %s", accountID)
 	}
-	_ = setServer(account)
+	_ = setServer(accountID)
 
 	var out []byte
 	var err error
 
 	if password != "" {
-		// Set temp env var in subprocess only (not parent)
-		env := bwEnv(account)
+		env := bwEnv(accountID)
 		env = append(env, "BWPLUGIN_TMP_PW="+password)
 		cmd := exec.Command(findBW(), "login", acc.Email, "--passwordenv", "BWPLUGIN_TMP_PW")
 		cmd.Env = env
 		out, err = cmd.CombinedOutput()
 	} else {
-		out, err = bwRunCombined(account, "login", acc.Email)
+		out, err = bwRunCombined(accountID, "login", acc.Email)
 	}
 
 	if err != nil {
@@ -264,23 +240,17 @@ func doLogin(account string, password string) error {
 	return nil
 }
 
-func doAPIKeyLogin(account string) error {
-	clientID := os.Getenv(clientIDEnv(account))
-	clientSecret := os.Getenv(clientSecretEnv(account))
+func doAPIKeyLogin(accountID string) error {
+	clientID := getCredential(accountID, credClientID)
+	clientSecret := getCredential(accountID, credClientSecret)
 
-	if clientID == "" {
-		clientID = os.Getenv("BW_CLIENTID")
-	}
-	if clientSecret == "" {
-		clientSecret = os.Getenv("BW_CLIENTSECRET")
-	}
 	if clientID == "" || clientSecret == "" {
-		return fmt.Errorf("BW_CLIENTID and BW_CLIENTSECRET env vars required")
+		return fmt.Errorf("API credentials not stored for %s — run: bw-plugin auth setup", accountID)
 	}
 
-	_ = setServer(account)
+	_ = setServer(accountID)
 
-	env := bwEnv(account)
+	env := bwEnv(accountID)
 	env = append(env, "BW_CLIENTID="+clientID)
 	env = append(env, "BW_CLIENTSECRET="+clientSecret)
 
@@ -293,20 +263,20 @@ func doAPIKeyLogin(account string) error {
 	return nil
 }
 
-func doUnlock(account string, password string) (string, error) {
-	_ = setServer(account)
+func doUnlock(accountID string, password string) (string, error) {
+	_ = setServer(accountID)
 
 	var out []byte
 	var err error
 
 	if password != "" {
-		env := bwEnv(account)
+		env := bwEnv(accountID)
 		env = append(env, "BWPLUGIN_TMP_PW="+password)
 		cmd := exec.Command(findBW(), "unlock", "--passwordenv", "BWPLUGIN_TMP_PW", "--raw")
 		cmd.Env = env
 		out, err = cmd.CombinedOutput()
 	} else {
-		out, err = bwRunCombined(account, "unlock", "--raw")
+		out, err = bwRunCombined(accountID, "unlock", "--raw")
 	}
 
 	if err != nil {
@@ -331,6 +301,30 @@ func getItem(account, session, itemName string) (*BWItem, error) {
 
 func searchItems(account, session, query string) ([]BWItem, error) {
 	out, err := bwRunSession(account, session, "list", "items", "--search", query)
+	if err != nil {
+		return nil, err
+	}
+	var items []BWItem
+	if err := json.Unmarshal(out, &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func listFolders(account, session string) ([]BWFolder, error) {
+	out, err := bwRunSession(account, session, "list", "folders")
+	if err != nil {
+		return nil, err
+	}
+	var folders []BWFolder
+	if err := json.Unmarshal(out, &folders); err != nil {
+		return nil, err
+	}
+	return folders, nil
+}
+
+func listItemsInFolder(account, session, folderID string) ([]BWItem, error) {
+	out, err := bwRunSession(account, session, "list", "items", "--folderid", folderID)
 	if err != nil {
 		return nil, err
 	}

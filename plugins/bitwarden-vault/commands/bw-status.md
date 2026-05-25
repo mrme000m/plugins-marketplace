@@ -16,22 +16,30 @@ When the user runs `/bw-status`, show the current status of all configured Bitwa
    - Login status (unauthenticated / locked / unlocked)
    - Active account indicator
    - Email associated with each account
+   - Credential source (keychain / env var / none)
 
 ## Example Output
 
 ```
 Bitwarden Vault Status
 ======================
-● personal  — unlocked   misterme00@icloud.com
-○ work      — locked     i@mrme0.store
-○ api       — unauthenticated  i@mrme0.store
+* personal  — unlocked   misterme00@icloud.com    (keychain)
+  work      — locked     i@mrme0.store             (env var)
+  api       — unlocked   i@mrme0.store             (keychain + api key)
 
 Active: personal
 ```
 
 ## Troubleshooting
 
+If all accounts show `unauthenticated`:
+```bash
+bw-plugin auth setup     # Store credentials in Keychain
+bw-plugin auth login     # Interactive login (handles OTP)
+bw-plugin auth test      # Verify auto-auth works
+```
+
 If `bw-plugin` is not found, prompt the user to install it:
 ```bash
-cd <plugin-dir>/src && go build -o bw-plugin . && cp bw-plugin ~/bin/
+cd <plugin-dir>/src && make install
 ```
