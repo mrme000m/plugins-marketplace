@@ -10,13 +10,6 @@
   },
   "plugins": [
     {
-      "name": "scaffold-plugins",
-      "description": "Initial set of plugins for the marketplace scaffold",
-      "source": "./",
-      "strict": false,
-      "skills": []
-    },
-    {
       "name": "bitwarden-vault",
       "description": "Multi-account Bitwarden password manager with TOTP, secret injection, and vault export",
       "source": "./",
