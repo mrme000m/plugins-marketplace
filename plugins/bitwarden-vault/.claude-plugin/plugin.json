@@ -1,0 +1,34 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "bitwarden-vault",
+  "version": "1.1.0",
+  "description": "Multi-account Bitwarden password manager with TOTP generation, credential injection, vault search, and encrypted export",
+  "author": {
+    "name": "mrme000m",
+    "email": "i@mrme0.store"
+  },
+  "license": "MIT",
+  "skills": [
+    "./skills/bitwarden-vault"
+  ],
+  "commands": [
+    {
+      "name": "bw-status",
+      "description": "Show Bitwarden vault status for all configured accounts",
+      "source": "./commands/bw-status.md"
+    }
+  ],
+  "mcp_servers": [
+    {
+      "name": "bitwarden-mcp",
+      "description": "MCP server providing Bitwarden vault tools via stdio",
+      "command": "go",
+      "args": ["run", "./mcp/main.go"],
+      "env": {
+        "BWP_PASSWORD": "",
+        "BWW_PASSWORD": "",
+        "BWA_PASSWORD": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "Clear description of what this plugin does",
+  "author": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  },
+  "license": "MIT",
+  "skills": [
+    "./skills/my-skill"
+  ],
+  "commands": [],
+  "agents": [],
+  "mcp_servers": []
+}
