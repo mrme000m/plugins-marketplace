@@ -1,0 +1,20 @@
+{
+  "name": "plugins-marketplace",
+  "owner": {
+    "name": "Marketplace Maintainer",
+    "email": "maintainer@example.com"
+  },
+  "metadata": {
+    "description": "A standardized marketplace for agent skills and plugins",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "scaffold-plugins",
+      "description": "Initial set of plugins for the marketplace scaffold",
+      "source": "./",
+      "strict": false,
+      "skills": []
+    }
+  ]
+}
