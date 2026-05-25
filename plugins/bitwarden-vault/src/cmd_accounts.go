@@ -280,6 +280,31 @@ func cmdAccountAdd() {
 		os.Exit(1)
 	}
 
+	// API key credentials (optional — bypasses device verification)
+	fmt.Println()
+	fmt.Println("?  API Key login (bypasses device verification, recommended):")
+	fmt.Println("    1) Enter credentials now")
+	fmt.Println("    2) Skip — configure later with 'bw-plugin auth setup'")
+	fmt.Print("?  Choice [2]: ")
+	apiChoice := readLineClean()
+	if apiChoice == "1" || strings.EqualFold(apiChoice, "y") || strings.EqualFold(apiChoice, "yes") {
+		fmt.Print("    Client ID: ")
+		clientID := readLineClean()
+		if clientID != "" {
+			fmt.Print("    Client Secret: ")
+			secret := readLineHiddenClean()
+			if secret != "" {
+				if err := storeCred(acc.ID, credClientID, clientID); err != nil {
+					printError(fmt.Sprintf("Failed: %v", err))
+				} else if err := storeCred(acc.ID, credClientSecret, secret); err != nil {
+					printError(fmt.Sprintf("Failed: %v", err))
+				} else {
+					printSuccess("API credentials saved to Keychain")
+				}
+			}
+		}
+	}
+
 	if err := addAccount(acc); err != nil {
 		printError(fmt.Sprintf("Failed to save account: %v", err))
 		os.Exit(1)
@@ -530,6 +555,35 @@ func cmdAccountEdit(accountID string) {
 			acc.EmailIMAPPort = 993
 		} else {
 			fmt.Sscanf(portStr, "%d", &acc.EmailIMAPPort)
+		}
+	}
+
+	// API key credentials
+	fmt.Println()
+	fmt.Println("?  API Key credentials (press Enter to keep existing):")
+	apiHint := "not stored"
+	if hasCred(acc.ID, credClientID) && hasCred(acc.ID, credClientSecret) {
+		apiHint = "stored (press Enter to keep)"
+	}
+	fmt.Printf("    Client ID [%s]: ", apiHint)
+	clientID := readLineClean()
+	if clientID != "" {
+		_ = storeCred(acc.ID, credClientID, clientID)
+		fmt.Print("    Client Secret: ")
+		secret := readLineHiddenClean()
+		if secret != "" {
+			if err := storeCred(acc.ID, credClientSecret, secret); err != nil {
+				printError(fmt.Sprintf("Failed: %v", err))
+			} else {
+				printSuccess("API credentials updated in Keychain")
+			}
+		}
+	} else if hasCred(acc.ID, credClientID) {
+		fmt.Print("    Clear stored API credentials? [y/N]: ")
+		if strings.EqualFold(readLineClean(), "y") {
+			_ = deleteCred(acc.ID, credClientID)
+			_ = deleteCred(acc.ID, credClientSecret)
+			printSuccess("API credentials removed from Keychain")
 		}
 	}
 
