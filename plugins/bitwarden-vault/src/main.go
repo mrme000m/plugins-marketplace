@@ -333,6 +333,17 @@ func main() {
 	case "profile", "profiles":
 		cmdProfileList()
 
+	case "data":
+		acc := targetAccount
+		cmdData(cmdArgs, acc)
+
+	case "schema":
+		cmdDataSchema()
+
+	case "summary":
+		acc := targetAccount
+		cmdDataSummary(acc)
+
 	case "help", "--help", "-h":
 		printHelp()
 
@@ -530,6 +541,16 @@ Vault Operations:
   bw-plugin decrypt <file.enc> [out.json]
                                          Decrypt export
 
+Data Export (Non-Interactive, JSON Output):
+  bw-plugin data folders                 Export folders as JSON
+  bw-plugin data collections             Export collections as JSON
+  bw-plugin data items                   Export items as JSON
+  bw-plugin data items --folder <id>     Items in specific folder
+  bw-plugin data items --type <n>        Items by type (1=login,2=note,3=card,4=id,5=ssh)
+  bw-plugin data all                     Export everything in one JSON
+  bw-plugin data schema                  Show data structure reference
+  bw-plugin summary                      Human-readable vault summary
+
 Cross-Account:
   bw-plugin copy <item> --from <id> --to <id>
                                          Copy item between accounts
@@ -551,6 +572,7 @@ Server:
 Other:
   bw-plugin generate [options]           Generate password
   bw-plugin profile                      List configured accounts
+  bw-plugin schema                       Show data schema reference
   bw-plugin <bw command>                 Pass through to bw CLI
 
 Account Aliases (symlinks):

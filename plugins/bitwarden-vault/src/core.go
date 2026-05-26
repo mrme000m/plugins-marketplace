@@ -139,6 +139,14 @@ type BWItem struct {
 	Fields         []BWField `json:"fields"`
 }
 
+type BWCollection struct {
+	ID             string  `json:"id"`
+	Name           string  `json:"name"`
+	OrganizationID string  `json:"organizationId"`
+	Object         string  `json:"object"`
+	ExternalID     *string `json:"externalId"`
+}
+
 // ── Status ──────────────────────────────────────────────────────
 
 func getStatus(account string) (*BWStatus, error) {
@@ -321,6 +329,18 @@ func listFolders(account, session string) ([]BWFolder, error) {
 		return nil, err
 	}
 	return folders, nil
+}
+
+func listCollections(account, session string) ([]BWCollection, error) {
+	out, err := bwRunSession(account, session, "list", "collections")
+	if err != nil {
+		return nil, err
+	}
+	var cols []BWCollection
+	if err := json.Unmarshal(out, &cols); err != nil {
+		return nil, err
+	}
+	return cols, nil
 }
 
 func listItemsInFolder(account, session, folderID string) ([]BWItem, error) {
