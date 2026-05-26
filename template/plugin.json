@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "my-plugin",
   "version": "1.0.0",
-  "description": "Clear description of what this plugin does",
+  "description": "Clear description of what this plugin does and when to use it",
   "author": {
     "name": "Your Name",
     "email": "you@example.com"
@@ -11,7 +11,32 @@
   "skills": [
     "./skills/my-skill"
   ],
-  "commands": [],
-  "agents": [],
-  "mcp_servers": []
+  "commands": [
+    {
+      "name": "mycommand",
+      "description": "What this command does when the user runs /mycommand",
+      "source": "./commands/my-command.md"
+    }
+  ],
+  "agents": [
+    {
+      "name": "my-agent",
+      "description": "What this agent specializes in",
+      "source": "./agents/my-agent.md"
+    }
+  ],
+  "hooks": {
+    "source": "./hooks/hooks.json"
+  },
+  "mcp_servers": [
+    {
+      "name": "my-mcp",
+      "description": "MCP server providing tools via stdio",
+      "command": "npx",
+      "args": ["my-mcp-server"],
+      "env": {
+        "API_KEY": ""
+      }
+    }
+  ]
 }
