@@ -14,6 +14,12 @@ To install specific plugins from this marketplace:
 /plugin install bitwarden-vault@plugins-marketplace
 ```
 
+To install skills:
+```bash
+/skill install bitwarden-cli
+/skill install bitwarden-secrets
+```
+
 To install locally for development:
 ```bash
 /plugin install /path/to/plugins-marketplace/plugins/bitwarden-vault
@@ -24,6 +30,13 @@ To install locally for development:
 | Plugin | Category | Description |
 |--------|----------|-------------|
 | [bitwarden-vault](./plugins/bitwarden-vault) | security | Multi-account Bitwarden password manager, TOTP, secret injection, vault export |
+
+## Available Skills
+
+| Skill | Category | Description |
+|-------|----------|-------------|
+| [bitwarden-cli](./skills/bitwarden-cli) | security | Full CRUD management of Bitwarden vault items, folders, collections, and organizations via the `bw` CLI |
+| [bitwarden-secrets](./skills/bitwarden-secrets) | security | Full CRUD management of Bitwarden Secrets Manager projects, secrets, and access tokens via the `bws` CLI |
 
 ## Plugin Structure
 
