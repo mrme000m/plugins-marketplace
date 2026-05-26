@@ -14,12 +14,6 @@ To install specific plugins from this marketplace:
 /plugin install bitwarden-vault@plugins-marketplace
 ```
 
-To install skills:
-```bash
-/skill install bitwarden-cli
-/skill install bitwarden-secrets
-```
-
 To install locally for development:
 ```bash
 /plugin install /path/to/plugins-marketplace/plugins/bitwarden-vault
@@ -29,14 +23,17 @@ To install locally for development:
 
 | Plugin | Category | Description |
 |--------|----------|-------------|
-| [bitwarden-vault](./plugins/bitwarden-vault) | security | Multi-account Bitwarden password manager, TOTP, secret injection, vault export |
+| [bitwarden-vault](./plugins/bitwarden-vault) | security | Multi-account Bitwarden password manager with 3 bundled skills: vault operations, `bw` CLI CRUD, and Secrets Manager |
 
-## Available Skills
+### Bundled Skills
 
-| Skill | Category | Description |
-|-------|----------|-------------|
-| [bitwarden-cli](./skills/bitwarden-cli) | security | Full CRUD management of Bitwarden vault items, folders, collections, and organizations via the `bw` CLI |
-| [bitwarden-secrets](./skills/bitwarden-secrets) | security | Full CRUD management of Bitwarden Secrets Manager projects, secrets, and access tokens via the `bws` CLI |
+The `bitwarden-vault` plugin includes the following skills under `plugins/bitwarden-vault/skills/`:
+
+| Skill | Description |
+|-------|-------------|
+| `bitwarden-vault` | Vault operations: TOTP, secret injection, search, export, account switching |
+| `bitwarden-cli` | Full CRUD management via `bw` CLI: items, folders, collections, organizations |
+| `bitwarden-secrets-manager` | Full CRUD management via `bws` CLI: secrets, projects, injection |
 
 ## Plugin Structure
 

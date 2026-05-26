@@ -10,24 +10,10 @@
   "plugins": [
     {
       "name": "bitwarden-vault",
-      "description": "Multi-account Bitwarden password manager with TOTP, secret injection, and vault export",
+      "description": "Multi-account Bitwarden password manager with TOTP, secret injection, vault export, and full CRUD via bw/bws CLI",
       "source": "./plugins/bitwarden-vault",
       "category": "security",
-      "tags": ["password-manager", "bitwarden", "vault", "TOTP", "secrets", "security"]
-    },
-    {
-      "name": "bitwarden-cli",
-      "description": "Full CRUD management of Bitwarden vault items, folders, collections, and organizations via the bw CLI",
-      "source": "./skills/bitwarden-cli",
-      "category": "security",
-      "tags": ["bitwarden", "cli", "vault", "crud", "items", "folders", "collections", "organizations"]
-    },
-    {
-      "name": "bitwarden-secrets",
-      "description": "Full CRUD management of Bitwarden Secrets Manager projects, secrets, and access tokens via the bws CLI",
-      "source": "./skills/bitwarden-secrets",
-      "category": "security",
-      "tags": ["bitwarden", "secrets-manager", "bws", "secrets", "projects", "injection", "environment-variables"]
+      "tags": ["password-manager", "bitwarden", "vault", "TOTP", "secrets", "security", "cli", "crud"]
     }
   ]
 }
