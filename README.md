@@ -35,6 +35,33 @@ The `bitwarden-vault` plugin includes the following skills under `plugins/bitwar
 | `bitwarden-cli` | Full CRUD management via `bw` CLI: items, folders, collections, organizations |
 | `bitwarden-secrets-manager` | Full CRUD management via `bws` CLI: secrets, projects, injection |
 
+### Slash Commands
+
+| Command | Usage |
+|---------|-------|
+| `/bw-status` | Show Bitwarden vault status for all configured accounts |
+| `/bws-setup` | Interactive setup for Bitwarden Secrets Manager credentials |
+| `/bw-help` | Progressive discovery — show all capabilities, skills, and tools |
+
+### MCP Server
+
+The plugin bundles an MCP server (`bitwarden-mcp`) that provides vault tools via stdio:
+- `bw_search` — Search vault items
+- `bw_totp` — Generate TOTP codes
+- `bw_switch` — Switch active account
+- `bw_unlock` / `bw_login` — Authentication
+- `bw_export` — Encrypted vault export
+- `bws_secret_list` / `bws_secret_get` / `bws_secret_create` — Secrets Manager CRUD
+- `bws_project_list` — List projects
+- `bws_run` — Run commands with secrets injected
+
+### Security Hooks
+
+The plugin includes runtime security protections:
+
+- **`PreToolUse` credential-guard hook**: Blocks accidental `Edit|Write` operations to credential/session files (state.json, keychain, Bitwarden data dirs)
+- **`PostToolUse` audit-log hook**: Logs security-relevant `Bash` commands (auth, unlock, export, secret operations) to `~/.local/share/bw-plugin/audit.log`
+
 ## Plugin Structure
 
 Each plugin follows the [Claude Code Plugin Format](https://code.claude.com/docs/en/plugins) (Dec 2025):
@@ -42,10 +69,11 @@ Each plugin follows the [Claude Code Plugin Format](https://code.claude.com/docs
 ```
 plugins/<plugin-name>/
 ├── .claude-plugin/
-│   └── plugin.json          # Plugin manifest (required)
+│   ├── plugin.json          # Plugin manifest (required)
+│   └── hooks.json           # Optional PreToolUse/PostToolUse hooks
 ├── skills/
 │   └── <skill-name>/
-│       └── SKILL.md         # Skill instructions
+│       └── SKILL.md         # Skill instructions with trigger phrases
 ├── commands/                # Optional slash commands
 ├── agents/                  # Optional subagents
 ├── mcp/                     # Optional MCP server

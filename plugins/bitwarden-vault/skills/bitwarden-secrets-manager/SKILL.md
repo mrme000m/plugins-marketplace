@@ -1,6 +1,14 @@
 ---
 name: bitwarden-secrets
-description: Full CRUD management of Bitwarden Secrets Manager projects, secrets, and access tokens via the bws CLI. Use when the user needs to create, update, delete, list, or retrieve secrets, manage projects, or inject secrets into commands.
+description: |
+  Full CRUD management of Bitwarden Secrets Manager projects, secrets,
+  and access tokens via the `bws` CLI.
+
+  **Trigger phrases:** "create secret", "edit secret", "delete secret",
+  "list secrets", "list projects", "bws create", "bws edit", "bws delete",
+  "bws list", "bws get", "bws run", "inject env", "machine account",
+  "access token", "Secrets Manager", "bws setup", "bws secret",
+  "bws project".
 ---
 
 # Bitwarden Secrets Manager CLI

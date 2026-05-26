@@ -1,6 +1,14 @@
 ---
 name: bitwarden-vault
-description: Manage Bitwarden vault operations including password retrieval, TOTP generation, credential injection into commands, vault search, multi-account switching, Gmail OTP auto-fetch for device verification, and Secrets Manager (bws) integration. Use when the user needs to interact with their Bitwarden password vault or Secrets Manager.
+description: |
+  Manage Bitwarden vault operations: TOTP generation, credential injection,
+  vault search, multi-account switching, Gmail OTP auto-fetch, and Secrets
+  Manager (bws) integration.
+
+  **Trigger phrases:** "bitwarden", "password", "vault", "TOTP", "2FA",
+  "auth code", "inject password", "search vault", "export passwords",
+  "switch account", "device verification", "bws", "secrets manager",
+  "credential", "keychain".
 license: Complete terms in LICENSE.txt
 ---
 

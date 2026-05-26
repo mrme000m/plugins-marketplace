@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "bitwarden-vault",
-  "version": "1.1.0",
-  "description": "Multi-account Bitwarden password manager with TOTP generation, credential injection, vault search, and encrypted export",
+  "version": "1.2.0",
+  "description": "Multi-account Bitwarden password manager with TOTP generation, credential injection, vault search, encrypted export, Gmail OTP auto-fetch, Secrets Manager (bws) integration, and progressive capability discovery via /bw-help.",
   "author": {
     "name": "mrme000m",
     "email": "i@mrme0.store"
@@ -18,8 +18,21 @@
       "name": "bw-status",
       "description": "Show Bitwarden vault status for all configured accounts",
       "source": "./commands/bw-status.md"
+    },
+    {
+      "name": "bws-setup",
+      "description": "Interactive setup for Bitwarden Secrets Manager (bws) credentials",
+      "source": "./commands/bws-setup.md"
+    },
+    {
+      "name": "bw-help",
+      "description": "Progressive discovery menu showing all plugin skills, commands, MCP tools, and capabilities",
+      "source": "./commands/bw-help.md"
     }
   ],
+  "hooks": {
+    "source": "./hooks/hooks.json"
+  },
   "mcp_servers": [
     {
       "name": "bitwarden-mcp",

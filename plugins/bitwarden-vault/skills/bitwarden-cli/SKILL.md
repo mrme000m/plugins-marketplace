@@ -1,6 +1,14 @@
 ---
 name: bitwarden-cli
-description: Full CRUD management of Bitwarden vault items, folders, collections, and organizations via the bw CLI. Use when the user needs to create, update, delete, list, or search vault objects, manage collections/sharing, or perform organization admin tasks.
+description: |
+  Full CRUD management of Bitwarden vault items, folders, collections,
+  and organizations via the `bw` CLI.
+
+  **Trigger phrases:** "create item", "edit item", "delete item",
+  "create folder", "edit folder", "list folders", "list collections",
+  "organization", "share password", "generate password", "bw create",
+  "bw edit", "bw delete", "bw list", "bw get", "bw template",
+  "move item", "restore item", "bw encode", "bw import", "bw generate".
 ---
 
 # Bitwarden CLI Vault Manager
