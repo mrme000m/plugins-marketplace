@@ -62,7 +62,7 @@ When any vault operation needs a session, `bw-plugin` automatically:
 | Test all accounts auth flow | `bw-plugin auth test` |
 | Show stored credentials (masked) | `bw-plugin auth show` |
 | Remove stored credentials | `bw-plugin auth clean` |
-| Setup Secrets Manager auth | `bw-plugin bws-setup` or `./bws-setup.sh` |
+| Setup Secrets Manager auth | `bw-plugin bws-setup` |
 | **Account Management** | |
 | Check all accounts status | `bw-plugin` or `bw-plugin status -j` |
 | Switch active account | `bw-plugin switch [account]` or `bwp` / `bww` / `bwa` |

@@ -3,6 +3,8 @@
 
 # Build artifacts
 src/bw-plugin
+plugins/*/bw-plugin
+plugins/*/bin/
 *.o
 *.a
 
