@@ -1,18 +1,23 @@
 # Premium Account + Secrets Manager Setup Flow
 
 ## Goal
-Streamlined interactive flow to add a premium Bitwarden account, store all credentials securely, enable auto-OTP via IMAP, and generate/link a Secrets Manager access token.
+Streamlined interactive flow to add a premium Bitwarden account, store API key credentials securely, and generate/link a Secrets Manager access token.
 
-## Account Model Extension
+## Account Model
 
 ```go
 type Account struct {
-    // ... existing fields ...
-    
-    // Email OTP configuration
-    EmailProvider   string `json:"email_provider,omitempty"`   // gmail | icloud | outlook | yahoo | custom
-    EmailIMAPServer string `json:"email_imap_server,omitempty"` // imap.gmail.com | imap.mail.me.com | ...
-    EmailIMAPPort   int    `json:"email_imap_port,omitempty"`   // 993 | 587
+    ID           string              `json:"id"`
+    Name         string              `json:"name"`
+    Email        string              `json:"email"`
+    Server       string              `json:"server"`
+    ServerType   string              `json:"server_type"`
+    Plan         AccountPlan         `json:"plan"`
+    Capabilities AccountCapabilities `json:"capabilities"`
+    Org          *AccountOrg         `json:"org,omitempty"`
+    Tags         []string            `json:"tags,omitempty"`
+    Notes        string              `json:"notes,omitempty"`
+    EnvPrefix    string              `json:"env_prefix,omitempty"`
 }
 ```
 
@@ -27,47 +32,28 @@ type Account struct {
 ?  Plan: 1) free | 2) premium | 3) families | 4) teams | 5) enterprise [2]:
 ```
 
-### Phase 2: Vault Credentials
+### Phase 2: API Key Credentials
 ```
-?  Master password: ********
-?  API Client ID (optional, for API key login): 
-?  API Client Secret (optional):
-```
-
-### Phase 3: Device Verification OTP Setup
-```
-?  Which email receives Bitwarden device verification codes?
-    1) Same as account email (misterme00@icloud.com)
-    2) Different email
-?  Choice [1]: 2
-?  Verification email: mrme000.m0@gmail.com
-
-?  Email provider for IMAP access:
-    1) Gmail (imap.gmail.com)
-    2) iCloud (imap.mail.me.com)
-    3) Outlook/Hotmail (outlook.office365.com)
-    4) Yahoo (imap.mail.yahoo.com)
-    5) Other (manual)
+?  API Key credentials (required for authentication):
+    Get yours at: vault.bitwarden.com → Settings → My Account → API Key
+    1) Enter credentials now
+    2) Skip — configure later with 'bw-plugin auth setup'
 ?  Choice [1]: 1
-
-?  App password for Gmail IMAP:
-    Generate at: https://myaccount.google.com/apppasswords
-    > ********
+    Client ID: user.xxxx-xxxx-xxxx
+    Client Secret: ********
+✓ API credentials saved to Keychain
 ```
 
-### Phase 4: Auto-Auth Test
+### Phase 3: Auto-Auth Test
 ```
 → Testing auto-auth flow...
 → Logging into vault-bitwarden-com-misterme00-icloud-com...
-⚠ Device verification required
-→ Checking Gmail for Bitwarden OTP...
-✓ Found OTP: 123456
-✓ Logged in (device verified)
+✓ Logged in (API key)
 ✓ Unlocked vault
 ✓ Session: a1b2c3d4...
 ```
 
-### Phase 5: Secrets Manager Link (if applicable)
+### Phase 4: Secrets Manager Link (if applicable)
 ```
 → Checking organization for Secrets Manager...
 ✓ Org "dev" has Secrets Manager enabled
@@ -97,36 +83,35 @@ type Account struct {
 ### macOS Keychain
 | Service | Value | Account |
 |---------|-------|---------|
-| `bw-plugin.account.<id>.password` | Master password | `$USER` |
 | `bw-plugin.account.<id>.client_id` | API Client ID | `$USER` |
 | `bw-plugin.account.<id>.client_secret` | API Client Secret | `$USER` |
-| `bw-plugin.account.<id>.email_app_password` | Email IMAP app password | `$USER` |
+| `bw-plugin.account.<id>.password` | Master password (for unlock) | `$USER` |
 | `bws.<profile>.token` | BWS access token | `$USER` |
 
 ### Config Files
 ```
 ~/.config/bw-plugin/accounts.json      # Account registry
+~/.config/bw-plugin/.env               # Optional env vars for credentials
 ~/.config/bw-plugin/<id>/              # Per-account bw CLI data
 ~/.config/bws/config                   # BWS profiles
 ```
 
-## Auto-OTP Flow (Runtime)
+## Credential Resolution Order
 
-When `ensureAuthFull()` encounters device verification:
+1. **macOS Keychain** (primary — set via `bw-plugin auth setup`)
+2. **`.env` file** (`~/.config/bw-plugin/.env`)
+3. **Environment variables** (`BW_CLIENTID`/`BW_CLIENTSECRET` or `<PREFIX>_CLIENTID`/`<PREFIX>_CLIENTSECRET`)
+4. **Interactive setup prompt** — clear error with command to run `bw-plugin auth setup`
 
-1. Check if `email_app_password` is stored for the account
-2. Check `email_provider` to determine IMAP server
-3. Connect via IMAP using generic Python script:
-   ```python
-   python3 email_otp.py \
-     --provider gmail \
-     --email mrme000.m0@gmail.com \
-     --app-password xxxx \
-     --sender do-not-reply@bitwarden.com
-   ```
-4. Extract 6-digit code from latest matching email
-5. Retry `bw login --code <otp>`
-6. If IMAP fails, fall back to interactive prompt
+## Auto-Auth Flow (Runtime)
+
+When `ensureAuthFull()` is called:
+
+1. Look up API key credentials (env vars → .env → keychain)
+2. If found: `bw login --apikey` (bypasses device verification)
+3. Unlock vault with master password: `bw unlock --passwordenv ...`
+4. Return session key
+5. If credentials missing: print setup instructions and exit with error
 
 ## Cross-Account Secret Sharing
 
@@ -148,8 +133,7 @@ bw-plugin move "Stripe Key" \
 
 | Command | Purpose |
 |---------|---------|
-| `bw-plugin account add` | Full interactive setup with OTP + SM link |
+| `bw-plugin account add` | Full interactive setup with SM link |
 | `bw-plugin account link-sm <id>` | Link Secrets Manager to existing account |
-| `bw-plugin sm-tokens <id>` | List/manage SM access tokens for account |
 | `bw-plugin copy <item> --from <id> --to <id>` | Cross-account copy |
 | `bw-plugin move <item> --from <id> --to <id>` | Cross-account move |

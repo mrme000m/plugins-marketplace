@@ -20,8 +20,9 @@ Supports:
     - Encrypted exports (.enc files, prompts for PIN)
 
 Environment:
-    BWP_PASSWORD, BWW_PASSWORD, BWA_PASSWORD  # For live vault access
-    BW_SESSION                                 # Active session token
+    BWP_CLIENTID, BWW_CLIENTID, BWA_CLIENTID       # API key auth
+    BWP_CLIENTSECRET, BWW_CLIENTSECRET, BWA_CLIENTSECRET
+    BW_SESSION                                      # Active session token
 """
 
 import json
@@ -476,7 +477,7 @@ def cmd_live(account: str = "api"):
     session = result.stdout.strip()
     if not session or "error" in session.lower():
         print(f"Failed to unlock account '{account}': {result.stderr}", file=sys.stderr)
-        print("Make sure BWP_PASSWORD/BWW_PASSWORD/BWA_PASSWORD is set.", file=sys.stderr)
+        print("Make sure BWP_CLIENTID/BWP_CLIENTSECRET is set for API key auth.", file=sys.stderr)
         sys.exit(1)
 
     # Get appdata dir for this account

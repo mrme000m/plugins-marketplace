@@ -66,15 +66,6 @@ func cmdAccountInfo(accountID string) {
 	}
 	fmt.Printf("  Created:       %s\n", acc.CreatedAt)
 	fmt.Printf("  Updated:       %s\n", acc.UpdatedAt)
-	if acc.EmailOTP != "" && acc.EmailOTP != acc.Email {
-		fmt.Printf("  OTP Inbox:     %s\n", acc.EmailOTP)
-	}
-	if acc.EmailOTPHimalayaAccount != "" {
-		fmt.Printf("  Himalaya:      %s\n", acc.EmailOTPHimalayaAccount)
-	}
-	if acc.EmailProvider != "" {
-		fmt.Printf("  Email OTP:     %s (%s:%d)\n", acc.EmailProvider, acc.EmailIMAPServer, acc.EmailIMAPPort)
-	}
 	if len(acc.Tags) > 0 {
 		fmt.Printf("  Tags:          %s\n", strings.Join(acc.Tags, ", "))
 	}
@@ -104,11 +95,6 @@ func cmdAccountInfo(accountID string) {
 		fmt.Println("    ✓ API credentials stored")
 	} else {
 		fmt.Println("    ✗ API credentials not stored")
-	}
-	if hasCred(accountID, credEmailAppPassword) || hasCred(accountID, credGmailAppPassword) {
-		fmt.Println("    ✓ Email app password stored")
-	} else {
-		fmt.Println("    ✗ Email app password not stored")
 	}
 	fmt.Println()
 }
@@ -207,67 +193,6 @@ func cmdAccountAdd() {
 	fmt.Print("?  Notes (optional): ")
 	acc.Notes = readLineClean()
 
-	// Email provider for auto-OTP
-	fmt.Println()
-	fmt.Println("?  Email provider for device verification OTP auto-fetch:")
-	fmt.Println("    1) Gmail (imap.gmail.com)")
-	fmt.Println("    2) iCloud (imap.mail.me.com)")
-	fmt.Println("    3) Outlook (outlook.office365.com)")
-	fmt.Println("    4) Yahoo (imap.mail.yahoo.com)")
-	fmt.Println("    5) Other (manual IMAP server)")
-	fmt.Println("    6) Skip — no auto-OTP")
-	fmt.Print("?  Choice [1]: ")
-	emailChoice := readLineClean()
-	if emailChoice == "" {
-		emailChoice = "1"
-	}
-	switch emailChoice {
-	case "1":
-		acc.EmailProvider = "gmail"
-		acc.EmailIMAPServer = "imap.gmail.com"
-		acc.EmailIMAPPort = 993
-	case "2":
-		acc.EmailProvider = "icloud"
-		acc.EmailIMAPServer = "imap.mail.me.com"
-		acc.EmailIMAPPort = 993
-	case "3":
-		acc.EmailProvider = "outlook"
-		acc.EmailIMAPServer = "outlook.office365.com"
-		acc.EmailIMAPPort = 993
-	case "4":
-		acc.EmailProvider = "yahoo"
-		acc.EmailIMAPServer = "imap.mail.yahoo.com"
-		acc.EmailIMAPPort = 993
-	case "5":
-		acc.EmailProvider = "custom"
-		fmt.Print("?  IMAP server: ")
-		acc.EmailIMAPServer = readLineClean()
-		fmt.Print("?  IMAP port [993]: ")
-		portStr := readLineClean()
-		if portStr == "" {
-			acc.EmailIMAPPort = 993
-		} else {
-			fmt.Sscanf(portStr, "%d", &acc.EmailIMAPPort)
-		}
-	case "6":
-		acc.EmailProvider = ""
-	default:
-		acc.EmailProvider = "gmail"
-		acc.EmailIMAPServer = "imap.gmail.com"
-		acc.EmailIMAPPort = 993
-	}
-
-	// OTP email configuration (may differ from Bitwarden account email)
-	fmt.Println()
-	fmt.Printf("?  OTP email inbox [same as account email %s]: ", acc.Email)
-	acc.EmailOTP = readLineClean()
-	if acc.EmailOTP == "" {
-		acc.EmailOTP = acc.Email
-	}
-
-	fmt.Print("?  Himalaya account name for OTP fetch [none]: ")
-	acc.EmailOTPHimalayaAccount = readLineClean()
-
 	acc.ID = acc.DeriveID()
 	now := time.Now().Format(time.RFC3339)
 	acc.CreatedAt = now
@@ -280,14 +205,14 @@ func cmdAccountAdd() {
 		os.Exit(1)
 	}
 
-	// API key credentials (optional — bypasses device verification)
 	fmt.Println()
-	fmt.Println("?  API Key login (bypasses device verification, recommended):")
+	fmt.Println("?  API Key credentials (required for authentication):")
+	fmt.Println("    Get yours at: vault.bitwarden.com → Settings → My Account → API Key")
 	fmt.Println("    1) Enter credentials now")
 	fmt.Println("    2) Skip — configure later with 'bw-plugin auth setup'")
-	fmt.Print("?  Choice [2]: ")
+	fmt.Print("?  Choice [1]: ")
 	apiChoice := readLineClean()
-	if apiChoice == "1" || strings.EqualFold(apiChoice, "y") || strings.EqualFold(apiChoice, "yes") {
+	if apiChoice == "" || apiChoice == "1" || strings.EqualFold(apiChoice, "y") || strings.EqualFold(apiChoice, "yes") {
 		fmt.Print("    Client ID: ")
 		clientID := readLineClean()
 		if clientID != "" {
@@ -313,8 +238,8 @@ func cmdAccountAdd() {
 	printSuccess(fmt.Sprintf("Account added: %s", acc.ID))
 	fmt.Println()
 	fmt.Println("  Next steps:")
-	fmt.Printf("    bw-plugin auth setup    # Store master password + email app password\n")
-	fmt.Printf("    bw-plugin auth test     # Verify auto-auth works\n")
+	fmt.Printf("    bw-plugin auth setup    # Store API key + master password\n")
+	fmt.Printf("    bw-plugin auth test     # Verify authentication works\n")
 	fmt.Printf("    bw-plugin sm-link %s    # Link Secrets Manager (if applicable)\n", acc.ID)
 }
 
@@ -333,7 +258,7 @@ func cmdAccountRemove(accountID string) {
 	}
 
 	// Clean up credentials
-	for _, key := range []string{credPassword, credClientID, credClientSecret, credEmailAppPassword, credGmailAppPassword} {
+	for _, key := range []string{credPassword, credClientID, credClientSecret} {
 		_ = deleteCred(accountID, key)
 	}
 
@@ -503,59 +428,6 @@ func cmdAccountEdit(accountID string) {
 	fmt.Printf("?  Server [%s]: ", acc.Server)
 	if v := readLineClean(); v != "" {
 		acc.Server = v
-	}
-
-	fmt.Printf("?  OTP inbox (where Bitwarden emails arrive) [%s]: ", acc.EmailOTP)
-	if v := readLineClean(); v != "" {
-		acc.EmailOTP = v
-	}
-
-	fmt.Printf("?  Himalaya account name for OTP fetch [%s]: ", acc.EmailOTPHimalayaAccount)
-	if v := readLineClean(); v != "" {
-		acc.EmailOTPHimalayaAccount = v
-	} else if acc.EmailOTPHimalayaAccount != "" {
-		fmt.Print("   Clear Himalaya account? [y/N]: ")
-		if strings.EqualFold(readLineClean(), "y") {
-			acc.EmailOTPHimalayaAccount = ""
-		}
-	}
-
-	fmt.Println("?  Email provider for OTP auto-fetch:")
-	fmt.Println("    1) Gmail (imap.gmail.com)")
-	fmt.Println("    2) iCloud (imap.mail.me.com)")
-	fmt.Println("    3) Outlook (outlook.office365.com)")
-	fmt.Println("    4) Yahoo (imap.mail.yahoo.com)")
-	fmt.Println("    5) Other (manual IMAP server)")
-	fmt.Println("    6) Skip / keep current")
-	fmt.Printf("?  Choice [6]: ")
-	switch readLineClean() {
-	case "1":
-		acc.EmailProvider = "gmail"
-		acc.EmailIMAPServer = "imap.gmail.com"
-		acc.EmailIMAPPort = 993
-	case "2":
-		acc.EmailProvider = "icloud"
-		acc.EmailIMAPServer = "imap.mail.me.com"
-		acc.EmailIMAPPort = 993
-	case "3":
-		acc.EmailProvider = "outlook"
-		acc.EmailIMAPServer = "outlook.office365.com"
-		acc.EmailIMAPPort = 993
-	case "4":
-		acc.EmailProvider = "yahoo"
-		acc.EmailIMAPServer = "imap.mail.yahoo.com"
-		acc.EmailIMAPPort = 993
-	case "5":
-		acc.EmailProvider = "custom"
-		fmt.Print("?  IMAP server: ")
-		acc.EmailIMAPServer = readLineClean()
-		fmt.Print("?  IMAP port [993]: ")
-		portStr := readLineClean()
-		if portStr == "" {
-			acc.EmailIMAPPort = 993
-		} else {
-			fmt.Sscanf(portStr, "%d", &acc.EmailIMAPPort)
-		}
 	}
 
 	// API key credentials

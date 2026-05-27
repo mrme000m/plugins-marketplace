@@ -59,15 +59,6 @@ type Account struct {
 	CreatedAt    string                `json:"created_at"`
 	UpdatedAt    string                `json:"updated_at"`
 
-	// Email OTP configuration
-	// These settings are for the email INBOX where Bitwarden OTPs arrive,
-	// which may be completely different from the Bitwarden account Email.
-	EmailOTP                string `json:"email_otp,omitempty"`                 // Email address of the inbox receiving OTPs
-	EmailOTPHimalayaAccount string `json:"email_otp_himalaya_account,omitempty"` // Himalaya account name (e.g. "gmail")
-	EmailProvider           string `json:"email_provider,omitempty"`             // gmail | icloud | outlook | yahoo | custom
-	EmailIMAPServer         string `json:"email_imap_server,omitempty"`          // e.g. imap.gmail.com
-	EmailIMAPPort           int    `json:"email_imap_port,omitempty"`            // default 993
-
 	// Internal / legacy
 	EnvPrefix    string                `json:"env_prefix,omitempty"` // backward compat
 	Active       bool                  `json:"active,omitempty"`     // runtime only

@@ -34,8 +34,8 @@ Active: personal
 
 If all accounts show `unauthenticated`:
 ```bash
-bw-plugin auth setup     # Store credentials in Keychain
-bw-plugin auth login     # Interactive login (handles OTP)
+bw-plugin auth setup     # Store API key + password in Keychain
+bw-plugin auth login     # Login with API key (non-interactive)
 bw-plugin auth test      # Verify auto-auth works
 ```
 

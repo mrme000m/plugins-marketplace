@@ -20,7 +20,7 @@ Quick commands:
 
 [1] Vault Operations (SKILL: bitwarden-vault)
     — TOTP generation, credential injection, vault search, export
-    — Multi-account switching, Gmail OTP auto-fetch
+    — Multi-account switching, API key authentication
     — Trigger: "TOTP", "inject password", "search vault", "export"
 
 [2] CLI CRUD (SKILL: bitwarden-cli)
@@ -32,12 +32,11 @@ Quick commands:
     — Trigger: "create secret", "list projects", "inject env"
 
 [MCP Server] bitwarden-mcp
-    — 17 programmatic tools: search, TOTP, switch, unlock, export
-    — bws: secret CRUD, project list, run with injection
+    — 8 programmatic tools: status, search, get, login, unlock, lock, logout, list_accounts
 
 Setup:
-    bw-plugin auth setup      # Store credentials
-    bw-plugin auth login      # Login with OTP support
+    bw-plugin auth setup      # Store API key + password in Keychain
+    bw-plugin auth login      # Login with API key
     bw-plugin auth test       # Verify auto-auth
 ```
 

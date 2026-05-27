@@ -23,7 +23,7 @@ Use the `bw` CLI (via `bw-plugin` for multi-account context) to fully manage Bit
 
 **Account targeting:** Use `--account <name>` with `bw-plugin` or invoke via alias (`bwp`, `bww`, `bwa`). Raw `bw` commands require the correct `BITWARDENCLI_APPDATA_DIR` in the environment.
 
-**Session requirement:** Most commands need an active session. `bw-plugin` auto-unlocks via the password env var. Raw `bw` requires `BW_SESSION`.
+**Session requirement:** Most commands need an active session. `bw-plugin` auto-unlocks via API key auth + stored master password. Raw `bw` requires `BW_SESSION`.
 
 **JSON workflow:** The `bw` CLI uses a pipe-based JSON workflow: `get template` -> `jq` mutate -> `bw encode` -> `create`/`edit`. Always use this pattern for programmatic item creation/editing.
 
@@ -428,6 +428,39 @@ bw generate --length 32 --uppercase --lowercase --numbers --special
 ```bash
 bw list items --folderid null | jq '.[] | .name'
 ```
+
+## Personal Conventions
+
+When creating GitHub login items linked to educational (.edu) email accounts:
+
+1. **Folder**: Place the item in the `edu` folder (create it if missing)
+2. **Item name**: Use descriptive naming, e.g. `"Github ITU"` or `"Github edu"`
+3. **Login username**: Use the `.edu` email address as the login username
+4. **Custom `username` field**: Add a separate text custom field `username` with the actual GitHub handle (if different from the email)
+5. **Notes**: Always include `"Q"` marker on the first line, then a cross-reference line to the associated edu mail item, e.g. `"Edu mail: see ITU Webmail item in Edu folder"`
+6. **URI**: Set to `"https://github.com"`
+
+Pattern template:
+```bash
+FOLDER_ID=$(bw list folders --search "edu" | jq -r '.[0].id')
+bw get template item | jq '
+  .name = "Github <Institution>"
+  | .type = 1
+  | .folderId = "'"$FOLDER_ID"'"
+  | .notes = "Q\nEdu mail: see <MailItem> in Edu folder"
+  | .login = {
+      username: "<edu-email>",
+      password: null,
+      totp: null,
+      uris: [{ uri: "https://github.com", match: null }]
+    }
+  | .fields = [
+      { name: "username", value: "<github-handle>", type: 0 }
+    ]
+' | bw encode | bw create item
+```
+
+Edu mail items follow a parallel pattern in the `Edu` folder (or `Edu/Mail` subfolder), with item name reflecting the institution and note referencing back to the GitHub item.
 
 ## Guidelines
 

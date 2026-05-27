@@ -2,13 +2,11 @@
 name: bitwarden-vault
 description: |
   Manage Bitwarden vault operations: TOTP generation, credential injection,
-  vault search, multi-account switching, Gmail OTP auto-fetch, and Secrets
-  Manager (bws) integration.
+  vault search, multi-account switching, and Secrets Manager (bws) integration.
 
   **Trigger phrases:** "bitwarden", "password", "vault", "TOTP", "2FA",
   "auth code", "inject password", "search vault", "export passwords",
-  "switch account", "device verification", "bws", "secrets manager",
-  "credential", "keychain".
+  "switch account", "bws", "secrets manager", "credential", "keychain".
 license: Complete terms in LICENSE.txt
 ---
 
@@ -16,11 +14,11 @@ license: Complete terms in LICENSE.txt
 
 ## Keywords
 
-bitwarden, password, vault, credential, secret, TOTP, 2FA, authentication code, inject secrets, env vars, export vault, backup passwords, bw, bwc, bws, keychain, auto-auth, gmail otp, device verification, secrets manager
+bitwarden, password, vault, credential, secret, TOTP, 2FA, authentication code, inject secrets, env vars, export vault, backup passwords, bw, bwc, bws, keychain, auto-auth, api key, secrets manager
 
 ## Overview
 
-Use `bw-plugin` — a multi-account Bitwarden CLI wrapper — to perform vault operations without hardcoding credentials. The tool manages three isolated accounts (personal, work, api) with automatic authentication via macOS Keychain or environment variables. Session keys are never persisted to disk.
+Use `bw-plugin` — a multi-account Bitwarden CLI wrapper — to perform vault operations without hardcoding credentials. The tool manages three isolated accounts (personal, work, api) with automatic authentication via API key + macOS Keychain or environment variables. Session keys are never persisted to disk.
 
 **Account model:**
 
@@ -35,30 +33,30 @@ Target a specific account with `--account <name>` or by invoking the alias (`bwp
 **Authentication model:**
 
 Credentials are resolved in this priority order:
-1. **macOS Keychain** (primary) — stored via `bw-plugin auth setup`
-2. **Environment variables** (fallback) — `BWP_PASSWORD`, `BWW_PASSWORD`, `BWA_PASSWORD`
-3. **API keys** (for accounts with client credentials) — `BWP_CLIENTID`/`BWP_CLIENTSECRET`, etc.
-4. **Gmail app password** (optional) — for auto-fetching device verification OTPs from Gmail IMAP
+1. **Environment variables** — `BW_CLIENTID`/`BW_CLIENTSECRET`, or `BWP_CLIENTID`/`BWP_CLIENTSECRET`, etc.
+2. **`.env` file** — `~/.config/bw-plugin/.env`
+3. **macOS Keychain** — stored via `bw-plugin auth setup`
 
 When any vault operation needs a session, `bw-plugin` automatically:
 1. Checks current authentication status
-2. If unauthenticated: logs in (API key first, then password with Gmail OTP auto-fetch) and unlocks
-3. If locked: unlocks with stored credentials
+2. If unauthenticated: logs in with API key (bypasses device verification) and unlocks with master password
+3. If locked: unlocks with stored master password
 4. Returns the session key — all transparently
+5. If credentials are missing: prints clear setup instructions with the exact command to run
 
 **Prerequisites:**
 - `bw-plugin` binary in PATH (built from `src/` or pre-installed at `~/bin/bw-plugin`)
 - `bw` (Bitwarden CLI) and optionally `bws` (Secrets Manager CLI)
-- Credentials stored in macOS Keychain (via `bw-plugin auth setup`) or environment variables
-- For Gmail OTP auto-fetch: `python3` and a Gmail app password (https://myaccount.google.com/apppasswords)
+- API key credentials stored in macOS Keychain (via `bw-plugin auth setup`) or environment variables
+- Master password stored for vault unlock
 
 ## Quick Reference
 
 | Task | Command |
 |------|---------|
 | **Auth Management** | |
-| Store credentials in Keychain | `bw-plugin auth setup` |
-| Interactive login (handles OTP) | `bw-plugin auth login [account]` |
+| Store API key + password in Keychain | `bw-plugin auth setup` |
+| Login with API key | `bw-plugin auth login [account]` |
 | Test all accounts auth flow | `bw-plugin auth test` |
 | Show stored credentials (masked) | `bw-plugin auth show` |
 | Remove stored credentials | `bw-plugin auth clean` |
@@ -66,7 +64,7 @@ When any vault operation needs a session, `bw-plugin` automatically:
 | **Account Management** | |
 | Check all accounts status | `bw-plugin` or `bw-plugin status -j` |
 | Switch active account | `bw-plugin switch [account]` or `bwp` / `bww` / `bwa` |
-| Login to active account | `bw-plugin login` or `bw-plugin login --apikey` |
+| Login to active account | `bw-plugin login` |
 | Unlock vault (get session) | `bw-plugin unlock` or `bw-plugin unlock --raw` |
 | **Vault Operations** | |
 | Search vault items | `bw-plugin search "query"` |
@@ -90,10 +88,10 @@ When any vault operation needs a session, `bw-plugin` automatically:
 ### 1. First-Time Setup
 
 ```bash
-# Store credentials in macOS Keychain (interactive)
+# Store API key credentials + master password in macOS Keychain (interactive)
 bw-plugin auth setup
 
-# Login to each account (handles device verification OTP)
+# Login to each account (uses API key, no device verification)
 bw-plugin auth login
 
 # Verify everything works
@@ -101,9 +99,8 @@ bw-plugin auth test
 ```
 
 **`bw-plugin auth setup` prompts for each account:**
-- Master password (required for unlock)
-- API Client ID + Secret (optional, enables API key login)
-- Gmail app password (optional, enables auto-fetch of device verification OTPs)
+- API Client ID + Secret (required — enables API key login, bypasses device verification)
+- Master password (required — for vault unlock)
 
 After setup, **all vault operations auto-authenticate**. No manual login or unlock needed.
 
@@ -120,33 +117,12 @@ bw-plugin inject "cloudflare-api" -- ./deploy.sh
 
 The auto-auth flow:
 1. Checks `bw status` for the target account
-2. If **locked**: unlocks with credentials from Keychain or env vars
-3. If **unauthenticated**: logs in (API key preferred, then password with Gmail OTP auto-fetch) then unlocks
-4. All operations have 30-second timeouts and closed stdin to prevent 2FA prompt hangs
+2. If **locked**: unlocks with master password from Keychain or env vars
+3. If **unauthenticated**: logs in with API key (bypasses device verification) then unlocks
+4. All operations have 30-second timeouts and closed stdin to prevent prompt hangs
+5. If credentials are missing: prints clear error with setup command
 
-### 3. Device Verification & Gmail OTP Auto-Fetch
-
-When Bitwarden requires new device verification, it sends a 6-digit code to the account's email. If you've stored a **Gmail app password** during `auth setup`, the tool attempts to auto-fetch the OTP from Gmail IMAP:
-
-```
-→ Auto-fetched OTP from Gmail: 123456
-✓ Logged in to personal (OTP auto-fetched)
-```
-
-If auto-fetch fails or no Gmail app password is stored, the tool falls back to an interactive prompt:
-
-```
-⚠ Device verification required
-  Check email (misterme00@icloud.com) for the verification code.
-  Enter code: ____
-```
-
-**To enable Gmail OTP auto-fetch:**
-1. Go to https://myaccount.google.com/apppasswords
-2. Generate an app password for "Mail"
-3. Run `bw-plugin auth setup` and enter it when prompted
-
-### 4. Credential Retrieval
+### 3. Credential Retrieval
 
 **For viewing or copying:**
 ```bash
@@ -164,7 +140,7 @@ bw-plugin inject "cloudflare-api" -- ./deploy.sh
 
 Always prefer `inject` over writing credentials to files or echoing them to output.
 
-### 5. TOTP / 2FA Codes
+### 4. TOTP / 2FA Codes
 
 ```bash
 # Print code
@@ -176,7 +152,7 @@ bw-plugin totp "aws" --copy
 
 TOTP codes are time-sensitive. Retrieve them immediately before the user needs to input them.
 
-### 6. Export and Backup
+### 5. Export and Backup
 
 ```bash
 # Export with PIN encryption (AES-256-CBC + PBKDF2, 1M iterations)
@@ -188,7 +164,7 @@ bw-plugin decrypt ~/Backups/bw-personal-20260101-120000.enc
 
 The PIN is set interactively during export. It cannot be recovered if lost.
 
-### 7. Secrets Manager (bws)
+### 6. Secrets Manager (bws)
 
 The plugin integrates with Bitwarden Secrets Manager for machine-to-machine secrets:
 
@@ -268,11 +244,10 @@ bws secret create DATABASE_URL "postgres://..." <PROJECT_ID>
 ## Guidelines
 
 - **Auto-auth behavior.** Vault operations automatically login and unlock using stored credentials. No manual `bw-plugin login` or `bw-plugin unlock` needed after initial `auth setup`.
-- **Keychain first, env vars fallback.** Credentials are read from macOS Keychain (set via `auth setup`), falling back to environment variables (`BWP_PASSWORD`, etc.). Both sources work transparently.
-- **API key login preferred.** When API keys are available, they are tried first during auto-auth because they bypass Bitwarden's device verification requirement.
-- **Gmail OTP auto-fetch.** If a Gmail app password is stored and device verification is required, the tool auto-fetches the OTP from Gmail IMAP before prompting interactively.
+- **API key login required.** Authentication uses API key credentials (Client ID + Client Secret). This bypasses Bitwarden's device verification entirely.
+- **Credential resolution.** Credentials are read from: environment variables → `.env` file → macOS Keychain (set via `auth setup`). All sources work transparently.
+- **Setup on missing credentials.** If credentials are not found, the tool prints clear instructions including the exact command to run (`bw-plugin auth setup`) and alternative methods (env vars, .env file).
 - **Never persist credentials to files.** Do not write passwords or session keys to files. Prefer `inject` to pass credentials as env vars to child processes.
-- **Device verification handling.** If auto-auth detects a device verification requirement and cannot auto-fetch the OTP, it returns a clear error directing the user to `bw-plugin auth login`. Never hang waiting for interactive input.
 - **Account targeting.** Use `--account` or the alias (`bwp`/`bww`/`bwa`) when the user specifies an account. Default to the active account otherwise.
 - **JSON mode.** Use `-j` / `--json` when parsing output programmatically.
 - **TOTP timing.** Retrieve TOTP codes immediately before the user needs them — they expire quickly.

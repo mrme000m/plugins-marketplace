@@ -3,12 +3,12 @@
     {
       "event": "PreToolUse",
       "matcher": "Edit|Write",
-      "command": ".claude-plugin/hooks/credential-guard.sh"
+      "command": "./hooks/credential-guard.sh"
     },
     {
       "event": "PostToolUse",
       "matcher": "Bash",
-      "command": ".claude-plugin/hooks/audit-log.sh"
+      "command": "./hooks/audit-log.sh"
     }
   ]
 }

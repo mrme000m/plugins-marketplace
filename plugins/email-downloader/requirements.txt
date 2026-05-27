@@ -1,0 +1,1 @@
+# No external dependencies required (uses standard library: imaplib, ssl, email, json, subprocess)

@@ -24,9 +24,13 @@ To install locally for development:
 | Plugin | Category | Description |
 |--------|----------|-------------|
 | [bitwarden-vault](./plugins/bitwarden-vault) | security | Multi-account Bitwarden password manager with 3 bundled skills: vault operations, `bw` CLI CRUD, and Secrets Manager |
+| [email-attachments](./plugins/email-attachments) | security | Hybrid email attachment pipeline: Python extractors (PDF, DOCX, images, Office) normalize files to text + metadata before Claude scores for phishing and routes to inbox |
+| [email-downloader](./plugins/email-downloader) | productivity | Modular IMAP email downloader with robust filtering and optional integration with the email-attachments parsing pipeline |
+| [email-otp](./plugins/email-otp) | security | Modular email OTP extraction with pluggable IMAP providers (Gmail, iCloud, Outlook) and service-specific templates (Bitwarden, GitHub, Google, AWS) |
 
 ### Bundled Skills
 
+#### bitwarden-vault
 The `bitwarden-vault` plugin includes the following skills under `plugins/bitwarden-vault/skills/`:
 
 | Skill | Description |
@@ -35,25 +39,66 @@ The `bitwarden-vault` plugin includes the following skills under `plugins/bitwar
 | `bitwarden-cli` | Full CRUD management via `bw` CLI: items, folders, collections, organizations |
 | `bitwarden-secrets-manager` | Full CRUD management via `bws` CLI: secrets, projects, injection |
 
+#### email-attachments
+The `email-attachments` plugin includes the following skills under `plugins/email-attachments/skills/`:
+
+| Skill | Description |
+|-------|-------------|
+| `email-attachments` | Pipeline: type detection, Python/Apryse extraction, metadata/risk envelopes, OCR |
+| `phishing-audit` | Security assessment across 7 dimensions: spoofing, brand, urgency, URLs, credentials, signals, entities |
+| `inbox-organize` | Classification: document category, priority, action items, folder suggestion |
+
+#### email-downloader
+The `email-downloader` plugin includes the following skills under `plugins/email-downloader/skills/`:
+
+| Skill | Description |
+|-------|-------------|
+| `email-downloader` | Download and filter emails via IMAP, save to markdown/raw EML, and optionally parse attachments |
+
+#### email-otp
+The `email-otp` plugin includes the following skills under `plugins/email-otp/skills/`:
+
+| Skill | Description |
+|-------|-------------|
+| `email-otp` | Fetch one-time passwords from email inboxes via IMAP with pluggable providers and templates |
+
 ### Slash Commands
 
+#### bitwarden-vault
 | Command | Usage |
 |---------|-------|
 | `/bw-status` | Show Bitwarden vault status for all configured accounts |
 | `/bws-setup` | Interactive setup for Bitwarden Secrets Manager credentials |
 | `/bw-help` | Progressive discovery — show all capabilities, skills, and tools |
 
+#### email-attachments
+| Command | Usage |
+|---------|-------|
+| `/parse-attachment` | Parse a single file or directory into normalized artifacts |
+| `/attachment-audit` | Run phishing/security audit on parsed artifacts |
+| `/attachment-help` | Progressive discovery — show all capabilities, parsers, and skills |
+
+#### email-downloader
+| Command | Usage |
+|---------|-------|
+| `/email-download` | Download emails using IMAP with optional filtering |
+| `/email-list` | List available mailboxes or summarize emails in a folder |
+
+#### email-otp
+| Command | Usage |
+|---------|-------|
+| `/email-otp` | Fetch OTP codes from email inboxes by service/provider |
+
 ### MCP Server
 
 The plugin bundles an MCP server (`bitwarden-mcp`) that provides vault tools via stdio:
-- `bw_search` — Search vault items
-- `bw_totp` — Generate TOTP codes
-- `bw_switch` — Switch active account
-- `bw_unlock` / `bw_login` — Authentication
-- `bw_export` — Encrypted vault export
-- `bws_secret_list` / `bws_secret_get` / `bws_secret_create` — Secrets Manager CRUD
-- `bws_project_list` — List projects
-- `bws_run` — Run commands with secrets injected
+- `bitwarden_status` — Show vault status for all configured accounts
+- `bitwarden_search` — Search vault items across accounts
+- `bitwarden_get` — Get a specific vault item by ID
+- `bitwarden_login` — Login and authenticate to vault
+- `bitwarden_unlock` / `bitwarden_lock` — Lock/unlock vault
+- `bitwarden_logout` — Logout from vault
+- `bitwarden_list_accounts` — List configured accounts
 
 ### Security Hooks
 

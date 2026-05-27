@@ -33,7 +33,7 @@ This document defines how `bw-plugin` integrates with AI agent platforms:
 
 ### Tools (token-efficient, focused)
 
-All vault tools support automatic authentication — no separate login/unlock step needed. Credentials are sourced from macOS Keychain (primary) or environment variables (fallback).
+All vault tools support automatic authentication — no separate login/unlock step needed. Credentials are sourced from environment variables → `.env` file → macOS Keychain.
 
 | Tool | Input | Output | Tokens |
 |------|-------|--------|--------|
@@ -90,7 +90,7 @@ The SKILL.md description field targets these conversation patterns:
 command = ["bw-plugin-mcp"]
 # Credentials from macOS Keychain (via bw-plugin auth setup)
 # or set env vars as fallback:
-# env = { BWP_PASSWORD = "", BWW_PASSWORD = "", BWA_PASSWORD = "" }
+# env = { BWP_CLIENTID = "", BWP_CLIENTSECRET = "" }
 ```
 
 ## Opencode CLI Plugin

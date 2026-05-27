@@ -40,7 +40,9 @@ ln -sf ~/bin/bw-plugin ~/bin/bwa
 bw-plugin auth setup
 ```
 
-This interactively prompts for each account's master password and (optionally) API key credentials, storing them in macOS Keychain. Press Enter to skip any field and keep existing values.
+This interactively prompts for each account's API key credentials (Client ID + Client Secret) and master password, storing them in macOS Keychain. Press Enter to skip any field and keep existing values.
+
+**Get your API key at:** vault.bitwarden.com → Settings → My Account → API Key
 
 ### 2. Login to Each Account
 
@@ -48,7 +50,7 @@ This interactively prompts for each account's master password and (optionally) A
 bw-plugin auth login
 ```
 
-Performs interactive login for all accounts. If Bitwarden requires device verification (OTP sent to email), this command prompts for the code. After device verification, auto-auth works without manual intervention.
+Performs API key login for all accounts. No device verification needed — API keys bypass that entirely.
 
 To login a single account:
 ```bash
@@ -65,49 +67,39 @@ Tests the full auto-auth flow for all accounts. If successful, shows session key
 
 ## Credential Configuration
 
-There are three ways to provide credentials, used in this priority order:
+Credentials are resolved in this priority order: environment variables → `.env` file → macOS Keychain.
 
-### Option A: macOS Keychain (Recommended)
+### Option A: Environment Variables (Recommended for Agents)
+
+Set environment variables in your shell profile:
+
+```bash
+export BWP_CLIENTID="user.xxxx"
+export BWP_CLIENTSECRET="xxxx"
+```
+
+For API key auth:
+```bash
+export BW_CLIENTID="user.xxxx"
+export BW_CLIENTSECRET="xxxx"
+```
+
+### Option B: `.env` File
+
+Create `~/.config/bw-plugin/.env`:
+
+```bash
+BWP_CLIENTID=user.xxxx
+BWP_CLIENTSECRET=xxxx
+```
+
+### Option C: macOS Keychain (Interactive Setup)
 
 ```bash
 bw-plugin auth setup
 ```
 
-Credentials are stored securely in macOS Keychain with service names like `bw-plugin.personal.password`. No shell configuration needed.
-
-### Option B: Environment Variables (Fallback)
-
-Set password environment variables in your shell profile:
-
-```bash
-export BWP_PASSWORD="your-personal-password"
-export BWW_PASSWORD="your-work-password"
-export BWA_PASSWORD="your-api-vault-password"
-```
-
-For API key auth, also set:
-```bash
-export BWA_CLIENTID="user.xxxx"
-export BWA_CLIENTSECRET="xxxx"
-```
-
-### Option C: Config File (Account Customization)
-
-To customize accounts, create `~/.config/bw-plugin/config.json`:
-
-```json
-{
-  "accounts": {
-    "personal": {
-      "name": "Personal Premium",
-      "email": "you@example.com",
-      "server": "https://vault.bitwarden.com",
-      "env_prefix": "BWP",
-      "tag": "PREMIUM"
-    }
-  }
-}
-```
+Credentials are stored securely in macOS Keychain with service names like `bw-plugin.account.<id>.client_id`. No shell configuration needed.
 
 ## Managing Stored Credentials
 

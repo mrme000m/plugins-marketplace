@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "email-downloader",
+  "version": "1.0.0",
+  "description": "Modular and versatile email downloader optimized for agentic usage. Supports IMAP, filtering, and optional integration with email-attachments for parsing.",
+  "author": {
+    "name": "mrme000m",
+    "email": "i@mrme0.store"
+  },
+  "license": "MIT",
+  "skills": [
+    "./skills/email-downloader"
+  ],
+  "commands": [
+    {
+      "name": "email-download",
+      "description": "Download emails using IMAP with optional filtering",
+      "source": "./commands/email-download.md"
+    },
+    {
+      "name": "email-list",
+      "description": "List available mailboxes or summarize emails in a folder",
+      "source": "./commands/email-list.md"
+    }
+  ]
+}

@@ -28,9 +28,6 @@ import (
 //     plan              → free | premium | families | teams | enterprise | custom
 //     client_id         → API client ID
 //     client_secret     → API client secret
-//     email_provider    → gmail | icloud | outlook | yahoo
-//     email_otp         → inbox email for OTP auto-fetch
-//     himalaya_account  → Himalaya account name
 //     tags              → comma-separated tags
 //     notes             → free-form notes (also falls back to item.notes)
 
@@ -105,8 +102,7 @@ func cmdAccountDiscover() {
 		fmt.Println("    username      → Bitwarden email")
 		fmt.Println("    password      → master password (optional)")
 		fmt.Println("    URI           → server URL")
-		fmt.Println("    custom fields → server_type, plan, client_id, client_secret,")
-		fmt.Println("                    email_provider, email_otp, himalaya_account, tags")
+		fmt.Println("    custom fields → server_type, plan, client_id, client_secret, tags")
 		return
 	}
 
@@ -198,14 +194,11 @@ func itemToAccount(item BWItem) (Account, string) {
 
 	// Build account
 	acc := Account{
-		Name:         item.Name,
-		Email:        login.Username,
-		Server:       server,
-		ServerType:   serverType,
-		Plan:         plan,
-		EmailOTP:     fields["email_otp"],
-		EmailOTPHimalayaAccount: fields["himalaya_account"],
-		EmailProvider: fields["email_provider"],
+		Name:       item.Name,
+		Email:      login.Username,
+		Server:     server,
+		ServerType: serverType,
+		Plan:       plan,
 	}
 
 	// Derive tags
@@ -234,19 +227,6 @@ func itemToAccount(item BWItem) (Account, string) {
 	if exists {
 		action = "updated"
 		acc.CreatedAt = existing.CreatedAt
-		// Preserve fields not set in vault item
-		if acc.EmailOTP == "" {
-			acc.EmailOTP = existing.EmailOTP
-		}
-		if acc.EmailOTPHimalayaAccount == "" {
-			acc.EmailOTPHimalayaAccount = existing.EmailOTPHimalayaAccount
-		}
-		if acc.EmailProvider == "" {
-			acc.EmailProvider = existing.EmailProvider
-			acc.EmailIMAPServer = existing.EmailIMAPServer
-			acc.EmailIMAPPort = existing.EmailIMAPPort
-		}
-		// Preserve capabilities and other metadata
 		acc.Capabilities = existing.Capabilities
 		acc.Org = existing.Org
 		acc.EnvPrefix = existing.EnvPrefix
@@ -258,17 +238,6 @@ func itemToAccount(item BWItem) (Account, string) {
 		acc.EnvPrefix = deriveEnvPrefix(acc.Name)
 	}
 	acc.UpdatedAt = time.Now().Format(time.RFC3339)
-
-	// Resolve email provider defaults
-	if acc.EmailProvider == "" && acc.EmailOTP != "" {
-		acc.EmailProvider, acc.EmailIMAPServer, acc.EmailIMAPPort = inferEmailProvider(acc.EmailOTP)
-	} else if acc.EmailProvider != "" && acc.EmailIMAPServer == "" {
-		// Provider known but server missing — fill in defaults
-		acc.EmailIMAPServer, acc.EmailIMAPPort = providerDefaults(acc.EmailProvider)
-	}
-	if acc.EmailProvider == "" && acc.Email != "" {
-		acc.EmailProvider, acc.EmailIMAPServer, acc.EmailIMAPPort = inferEmailProvider(acc.Email)
-	}
 
 	// Save to registry
 	registry.Accounts[acc.ID] = acc
@@ -282,9 +251,6 @@ func itemToAccount(item BWItem) (Account, string) {
 	}
 	if clientSecret := fields["client_secret"]; clientSecret != "" {
 		_ = storeCred(acc.ID, credClientSecret, clientSecret)
-	}
-	if emailAppPW := fields["email_app_password"]; emailAppPW != "" {
-		_ = storeCred(acc.ID, credEmailAppPassword, emailAppPW)
 	}
 
 	// Save registry
@@ -312,40 +278,6 @@ func inferServerType(server string) string {
 		return "cloud"
 	default:
 		return "custom"
-	}
-}
-
-func providerDefaults(provider string) (server string, port int) {
-	switch strings.ToLower(provider) {
-	case "gmail":
-		return "imap.gmail.com", 993
-	case "icloud":
-		return "imap.mail.me.com", 993
-	case "outlook":
-		return "outlook.office365.com", 993
-	case "yahoo":
-		return "imap.mail.yahoo.com", 993
-	default:
-		return "", 0
-	}
-}
-
-func inferEmailProvider(email string) (provider, server string, port int) {
-	domain := ""
-	if at := strings.LastIndex(email, "@"); at >= 0 {
-		domain = strings.ToLower(email[at+1:])
-	}
-	switch domain {
-	case "gmail.com", "googlemail.com":
-		return "gmail", "imap.gmail.com", 993
-	case "icloud.com", "me.com", "mac.com":
-		return "icloud", "imap.mail.me.com", 993
-	case "outlook.com", "hotmail.com", "live.com":
-		return "outlook", "outlook.office365.com", 993
-	case "yahoo.com":
-		return "yahoo", "imap.mail.yahoo.com", 993
-	default:
-		return "", "", 0
 	}
 }
 
@@ -421,9 +353,6 @@ func accountChanged(a, b Account) bool {
 		a.Server != b.Server ||
 		a.ServerType != b.ServerType ||
 		a.Plan != b.Plan ||
-		a.EmailOTP != b.EmailOTP ||
-		a.EmailOTPHimalayaAccount != b.EmailOTPHimalayaAccount ||
-		a.EmailProvider != b.EmailProvider ||
 		a.Notes != b.Notes ||
 		!stringSlicesEqual(a.Tags, b.Tags)
 }

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "email-otp",
+  "version": "1.0.0",
+  "description": "Modular email OTP extraction plugin. Fetches one-time passwords from email inboxes via IMAP with pluggable providers (Gmail, iCloud, Outlook) and service-specific templates (Bitwarden, GitHub, Google, AWS, etc.).",
+  "author": {
+    "name": "mrme000m",
+    "email": "i@mrme0.store"
+  },
+  "license": "MIT",
+  "skills": [
+    "./skills/email-otp"
+  ],
+  "commands": [
+    {
+      "name": "email-otp",
+      "description": "Fetch OTP codes from email inboxes via IMAP",
+      "source": "./commands/email-otp.md"
+    }
+  ]
+}

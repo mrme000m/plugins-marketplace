@@ -135,6 +135,7 @@ type BWItem struct {
 	FolderID       string    `json:"folderId"`
 	OrganizationID string    `json:"organizationId"`
 	Favorite       bool      `json:"favorite"`
+	Reprompt       int       `json:"reprompt"`
 	Login          *BWLogin  `json:"login"`
 	Fields         []BWField `json:"fields"`
 }
@@ -187,11 +188,6 @@ func setServer(accountID string) error {
 
 // ── Session Management (On-Demand) ──────────────────────────────
 
-// ensureSession checks bw status and unlocks if necessary.
-// It returns a BW_SESSION string usable for vault operations.
-// The session is NOT persisted — it is derived on-demand.
-// Supports full auto-auth: if unauthenticated, will attempt login
-// using credentials from keychain or env vars.
 func ensureSession(account string) (string, error) {
 	st, err := getStatus(account)
 	if err != nil {
@@ -200,20 +196,14 @@ func ensureSession(account string) (string, error) {
 
 	switch st.Status {
 	case "unlocked":
-		// bw reports unlocked — this only happens if BW_SESSION is already
-		// in the environment (e.g., user exported it). We can't extract it,
-		// so we need to unlock fresh to get a session key.
-		// Fall through to unlock.
 		fallthrough
 	case "locked":
-		// Logged in but vault locked — unlock to get session
 		password := getCredential(account, credPassword)
 		if password == "" {
-			return "", fmt.Errorf("vault is locked and no password available for %s", account)
+			return "", fmt.Errorf("vault is locked and no master password stored for %s — run: bw-plugin auth setup", account)
 		}
 		return doUnlock(account, password)
 	case "unauthenticated":
-		// Not logged in — attempt full auto-auth (login + unlock)
 		return ensureAuthFull(account)
 	default:
 		return "", fmt.Errorf("unknown vault status: %s", st.Status)
@@ -222,38 +212,13 @@ func ensureSession(account string) (string, error) {
 
 // ── Login Helpers ───────────────────────────────────────────────
 
-func doLogin(accountID string, password string) error {
-	acc, ok := getAccount(accountID)
-	if !ok {
-		return fmt.Errorf("unknown account: %s", accountID)
-	}
-	_ = setServer(accountID)
-
-	var out []byte
-	var err error
-
-	if password != "" {
-		env := bwEnv(accountID)
-		env = append(env, "BWPLUGIN_TMP_PW="+password)
-		cmd := exec.Command(findBW(), "login", acc.Email, "--passwordenv", "BWPLUGIN_TMP_PW")
-		cmd.Env = env
-		out, err = cmd.CombinedOutput()
-	} else {
-		out, err = bwRunCombined(accountID, "login", acc.Email)
-	}
-
-	if err != nil {
-		return fmt.Errorf("login failed: %w\n%s", err, string(out))
-	}
-	return nil
-}
-
 func doAPIKeyLogin(accountID string) error {
 	clientID := getCredential(accountID, credClientID)
 	clientSecret := getCredential(accountID, credClientSecret)
 
 	if clientID == "" || clientSecret == "" {
-		return fmt.Errorf("API credentials not stored for %s — run: bw-plugin auth setup", accountID)
+		printSetupRequired(accountID)
+		return fmt.Errorf("API key credentials not found for %s — run: bw-plugin auth setup", accountID)
 	}
 
 	_ = setServer(accountID)

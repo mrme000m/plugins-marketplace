@@ -1,0 +1,5 @@
+openpyxl>=3.1.2
+python-pptx>=0.6.21
+yara-python>=4.3.0
+python-magic>=0.4.27
+argparse>=1.4.0

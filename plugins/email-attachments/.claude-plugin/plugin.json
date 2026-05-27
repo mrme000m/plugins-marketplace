@@ -1,0 +1,33 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "email-attachments",
+  "version": "1.0.0",
+  "description": "High-fidelity email attachment processing pipeline: Python-based extractors (PDF, DOCX, images, Office) normalize attachments to text, metadata, and previews with automated YARA/Security auditing and intelligent triage.",
+  "author": {
+    "name": "mrme000m",
+    "email": "i@mrme0.store"
+  },
+  "license": "MIT",
+  "skills": [
+    "./skills/email-attachments",
+    "./skills/phishing-audit",
+    "./skills/inbox-organize"
+  ],
+  "commands": [
+    {
+      "name": "attachment-help",
+      "description": "Show all email-attachment plugin capabilities and available parsers",
+      "source": "./commands/attachment-help.md"
+    },
+    {
+      "name": "parse-attachment",
+      "description": "Parse a single attachment file: detect type, extract text, generate preview images, build metadata and risk JSON",
+      "source": "./commands/parse-attachment.md"
+    },
+    {
+      "name": "attachment-audit",
+      "description": "Run phishing/security audit on parsed attachment artifacts using Claude reasoning",
+      "source": "./commands/attachment-audit.md"
+    }
+  ]
+}

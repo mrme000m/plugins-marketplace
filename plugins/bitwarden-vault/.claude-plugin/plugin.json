@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "bitwarden-vault",
   "version": "1.2.0",
-  "description": "Multi-account Bitwarden password manager with TOTP generation, credential injection, vault search, encrypted export, Gmail OTP auto-fetch, Secrets Manager (bws) integration, and progressive capability discovery via /bw-help.",
+  "description": "Multi-account Bitwarden password manager with TOTP generation, credential injection, vault search, encrypted export, API key authentication, Secrets Manager (bws) integration, and progressive capability discovery via /bw-help.",
   "author": {
     "name": "mrme000m",
     "email": "i@mrme0.store"
@@ -40,9 +40,12 @@
       "command": "go",
       "args": ["run", "./mcp/main.go"],
       "env": {
-        "BWP_PASSWORD": "",
-        "BWW_PASSWORD": "",
-        "BWA_PASSWORD": ""
+        "BWP_CLIENTID": "",
+        "BWP_CLIENTSECRET": "",
+        "BWW_CLIENTID": "",
+        "BWW_CLIENTSECRET": "",
+        "BWA_CLIENTID": "",
+        "BWA_CLIENTSECRET": ""
       }
     }
   ]

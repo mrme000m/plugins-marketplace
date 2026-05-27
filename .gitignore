@@ -17,6 +17,9 @@ plugins/*/bin/
 .DS_Store
 Thumbs.db
 
+# Test attachment data
+attachments/
+
 # IDE
 .idea/
 .vscode/

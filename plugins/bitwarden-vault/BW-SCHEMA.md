@@ -317,9 +317,7 @@ From `~/.config/bw-plugin/accounts.json`:
         "sso": false,
         "yubikey": false
       },
-      "env_prefix": "BWP",
-      "email_otp": "otp-email@example.com",
-      "email_provider": "gmail"
+      "env_prefix": "BWP"
     }
   },
   "active_id": "vault-bitwarden-com-email-example-com",

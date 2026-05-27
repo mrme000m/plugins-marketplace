@@ -117,8 +117,7 @@ func main() {
 		cmdAccountSwitch(cmd)
 
 	case "login":
-		apikey := hasFlag(cmdArgs, "--apikey", "-k")
-		cmdLogin(apikey)
+		cmdLogin()
 
 	case "unlock":
 		raw := hasFlag(cmdArgs, "--raw", "-r")
@@ -508,7 +507,7 @@ Usage:
   bw-plugin                              Show status for all accounts
   bw-plugin status [-j]                  Status (JSON with -j)
   bw-plugin switch [account]             Switch active account
-  bw-plugin login [--apikey]             Login to active account
+  bw-plugin login                        Login to active account (API key)
   bw-plugin unlock                       Unlock vault
   bw-plugin lock                         Lock vault
   bw-plugin logout                       Logout
@@ -520,12 +519,12 @@ Accounts:
   bw-plugin account add                  Add a new account interactively
   bw-plugin account remove <id>          Remove an account
   bw-plugin account info [id]            Show account details + capabilities
-  bw-plugin account edit [id]            Edit account settings (OTP inbox, etc)
+  bw-plugin account edit [id]            Edit account settings
   bw-plugin account discover             Scan vault for Bitwarden account items
 
-Auth (Keychain + Auto-Login + Email OTP):
-  bw-plugin auth setup                   Store credentials in Keychain
-  bw-plugin auth login [account]         Interactive login (handles OTP)
+Auth (API Key + Keychain):
+  bw-plugin auth setup                   Store API key + password in Keychain
+  bw-plugin auth login [account]         Login with API key
   bw-plugin auth test                    Test all accounts auth flow
   bw-plugin auth show                    Show stored credentials (masked)
   bw-plugin auth clean                   Remove all stored credentials

@@ -77,37 +77,16 @@ func cmdStatus(jsonOutput bool) {
 
 // ── Login ───────────────────────────────────────────────────────
 
-func cmdLogin(apikey bool) {
+func cmdLogin() {
 	account := getActiveAccount().ID
 	acc, _ := getAccountByID(account)
 
-	if apikey {
-		printInfo(fmt.Sprintf("Logging into %s with API key...", acc.DisplayName()))
-		if err := doAPIKeyLogin(account); err != nil {
-			printError(err.Error())
-			os.Exit(1)
-		}
-		printSuccess("API key login successful")
-		fmt.Println()
-		fmt.Println("  Next: unlock the vault to get a session key")
-		fmt.Println("    bw-plugin unlock")
-		return
-	}
-
-	printInfo(fmt.Sprintf("Logging into %s (%s)...", acc.DisplayName(), acc.Email))
-
-	password := getCredential(account, credPassword)
-	if err := doLogin(account, password); err != nil {
+	printInfo(fmt.Sprintf("Logging into %s with API key...", acc.DisplayName()))
+	if err := doAPIKeyLogin(account); err != nil {
 		printError(err.Error())
-		fmt.Println()
-		fmt.Println("  Troubleshooting:")
-		fmt.Println("    - Store password in keychain: bw-plugin auth setup")
-		fmt.Printf("    - Or set env var: export %s='your-password'\n", acc.PasswordEnv())
-		fmt.Println("    - Or use API key auth: bw-plugin login --apikey")
 		os.Exit(1)
 	}
-
-	printSuccess(fmt.Sprintf("Logged in to %s", acc.DisplayName()))
+	printSuccess("API key login successful")
 	fmt.Println()
 	fmt.Println("  Next: unlock the vault to get a session key")
 	fmt.Println("    bw-plugin unlock")
@@ -123,8 +102,10 @@ func cmdUnlock(raw bool) {
 
 	password := getCredential(account, credPassword)
 	if password == "" {
-		printError(fmt.Sprintf("No password available for %s", acc.DisplayName()))
-		fmt.Println("  Store credentials: bw-plugin auth setup")
+		printError(fmt.Sprintf("No master password stored for %s", acc.DisplayName()))
+		fmt.Println()
+		fmt.Println("  The master password is required to unlock the vault.")
+		fmt.Println("  Store it with: bw-plugin auth setup")
 		os.Exit(1)
 	}
 
@@ -132,7 +113,7 @@ func cmdUnlock(raw bool) {
 	if err != nil {
 		printError(err.Error())
 		fmt.Println()
-		fmt.Println("  Try logging in first:")
+		fmt.Println("  Make sure you're logged in first:")
 		fmt.Println("    bw-plugin login")
 		os.Exit(1)
 	}

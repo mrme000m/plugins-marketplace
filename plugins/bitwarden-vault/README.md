@@ -8,10 +8,11 @@ Replaces the previous collection of zsh functions and helper scripts (`bwc`, `bw
 
 - **Multi-account management** — Personal Premium, Legacy NodeWarden, API Keys Vault
 - **Isolated sessions** — Each account uses its own `BITWARDENCLI_APPDATA_DIR`
-- **Keychain credential storage** — Master passwords and API keys stored in macOS Keychain
-- **Automatic authentication** — Vault operations auto-login and unlock using stored credentials
-- **Multiple auth methods** — API key login (bypasses device verification), master password, env var fallback
-- **Timeout-protected** — All auto-auth attempts have 30s timeouts with closed stdin to prevent 2FA hang
+- **Keychain credential storage** — API keys and master passwords stored in macOS Keychain
+- **Automatic authentication** — Vault operations auto-login (API key) and unlock using stored credentials
+- **API key auth** — Bypasses device verification prompts entirely
+- **Credential fallback** — Environment variables → `.env` file → macOS Keychain
+- **Timeout-protected** — All auto-auth attempts have 30s timeouts with closed stdin to prevent prompt hangs
 - **Vault operations** — Search, inject credentials as env vars, TOTP, export with encryption
 - **Secrets Manager** — `bws` passthrough with `--no-inherit-env` default
 - **HTTP API server** — `bw serve` management (start/stop/status)
@@ -35,10 +36,10 @@ make install
 ## First-Time Setup
 
 ```bash
-# 1. Store credentials in macOS Keychain
+# 1. Store API key credentials + master password in macOS Keychain
 bw-plugin auth setup
 
-# 2. Login to each account (handles device verification OTP interactively)
+# 2. Login to each account (uses API key, no device verification)
 bw-plugin auth login
 
 # 3. Verify all accounts authenticate
@@ -52,8 +53,8 @@ After setup, all vault operations auto-authenticate transparently.
 ### Auth Management
 
 ```bash
-bw-plugin auth setup              # Store credentials in macOS Keychain (interactive)
-bw-plugin auth login              # Interactive login for all accounts (handles OTP)
+bw-plugin auth setup              # Store API key + password in Keychain (interactive)
+bw-plugin auth login              # Login to all accounts (API key)
 bw-plugin auth login personal     # Login to specific account only
 bw-plugin auth test               # Test auto-auth flow for all accounts
 bw-plugin auth show               # Show stored credentials (masked)
@@ -61,15 +62,16 @@ bw-plugin auth clean              # Remove all credentials from Keychain
 ```
 
 **Credential resolution order:**
-1. macOS Keychain (primary — set via `auth setup`)
-2. Environment variables (`BWP_PASSWORD`, `BWW_PASSWORD`, `BWA_PASSWORD`)
-3. API keys (`BWP_CLIENTID`/`BWP_CLIENTSECRET`, etc.)
+1. Environment variables (`BW_CLIENTID`/`BW_CLIENTSECRET`, or `BWP_CLIENTID`/`BWP_CLIENTSECRET`, etc.)
+2. `.env` file (`~/.config/bw-plugin/.env`)
+3. macOS Keychain (set via `auth setup`)
 
 **Auto-auth flow** (triggered by any vault operation):
 1. Check `bw status` for the target account
-2. If **unauthenticated**: try API key login first (bypasses device verification), then password login
-3. If **locked**: unlock with stored credentials
+2. If **unauthenticated**: API key login (bypasses device verification), then unlock with master password
+3. If **locked**: unlock with stored master password
 4. All attempts: 30s timeout + stdin closed (prevents interactive prompt hangs)
+5. If credentials missing: clear error message with setup instructions
 
 ### Status & Account Switching
 
@@ -84,8 +86,7 @@ bw-plugin work               # Shortcut to switch to work
 ### Authentication (Manual)
 
 ```bash
-bw-plugin login              # Login (uses Keychain or password env var)
-bw-plugin login --apikey     # Login with API key (BW_CLIENTID/BW_CLIENTSECRET)
+bw-plugin login              # Login with API key
 bw-plugin unlock             # Unlock vault, prints BW_SESSION
 bw-plugin unlock --raw       # Output session key only (for shell capture)
 bw-plugin lock               # Lock vault
@@ -93,7 +94,7 @@ bw-plugin logout             # Destroy session
 bw-plugin validate           # Check vault status
 ```
 
-**Session model:** `bw-plugin` never persists session keys to disk. Vault operations auto-unlock on-demand if credentials are available (Keychain or env var). Manual unlock is rarely needed:
+**Session model:** `bw-plugin` never persists session keys to disk. Vault operations auto-unlock on-demand if credentials are available (Keychain, .env, or env var). Manual unlock is rarely needed:
 
 ```bash
 # Only needed if you want BW_SESSION in the current shell
@@ -159,7 +160,7 @@ bw-plugin sync
 
 ## Configuration
 
-Accounts are configured in code with these defaults:
+Accounts are stored in `~/.config/bw-plugin/accounts.json` with full metadata.
 
 | Account | Email | Server | Env Prefix |
 |---------|-------|--------|------------|
@@ -167,20 +168,24 @@ Accounts are configured in code with these defaults:
 | work | `i@mrme0.store` | `nodewarden.hmmr.workers.dev` | `BWW` |
 | api | `i@mrme0.store` | `vault.bitwarden.com` | `BWA` |
 
-To customize, create `~/.config/bw-plugin/config.json`:
+### Credential Configuration
 
-```json
-{
-  "accounts": {
-    "personal": {
-      "name": "Personal Premium",
-      "email": "you@example.com",
-      "server": "https://vault.bitwarden.com",
-      "env_prefix": "BWP",
-      "tag": "PREMIUM"
-    }
-  }
-}
+**Option A: Environment variables (recommended for agents)**
+```bash
+export BWP_CLIENTID="user.xxx..."
+export BWP_CLIENTSECRET="xxx..."
+```
+
+**Option B: `.env` file**
+Create `~/.config/bw-plugin/.env`:
+```
+BWP_CLIENTID=user.xxx...
+BWP_CLIENTSECRET=xxx...
+```
+
+**Option C: Interactive setup**
+```bash
+bw-plugin auth setup
 ```
 
 State (active account only) is stored in `~/.config/bw-plugin/state.json`. **Session keys and credentials are never persisted** — credentials live in macOS Keychain, sessions are derived on-demand.
@@ -197,11 +202,11 @@ make build-windows # Windows AMD64
 ## Security Notes
 
 - **No session persistence:** Session keys are never written to disk. They are derived on-demand via `bw unlock`.
-- **Keychain credential storage:** Master passwords and API keys are stored in macOS Keychain (encrypted, access-controlled by OS).
+- **Keychain credential storage:** API keys and master passwords are stored in macOS Keychain (encrypted, access-controlled by OS).
 - **Isolated accounts:** Each account has its own `BITWARDENCLI_APPDATA_DIR` — sessions never cross-contaminate.
 - **BW_SESSION stripping:** `bwEnv()` strips any existing `BW_SESSION` before running commands, preventing cross-account leakage.
 - **Timeout-protected auth:** All non-interactive login attempts have 30s timeouts with stdin closed to prevent 2FA prompt hangs.
-- **API key login priority:** API keys are tried before passwords during auto-auth because they bypass device verification.
+- **API key login:** API keys bypass device verification entirely, making auth reliable and non-interactive.
 - **State file** (`~/.config/bw-plugin/state.json`) tracks only `active_account` — no credentials. `chmod 0600`.
 - **Account directories** created with `chmod 0700`.
 - `bws run` defaults to `--no-inherit-env` to prevent shell env leakage.

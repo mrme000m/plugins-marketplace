@@ -1,5 +1,5 @@
 ---
-name: bitwarden-secrets
+name: bitwarden-secrets-manager
 description: |
   Full CRUD management of Bitwarden Secrets Manager projects, secrets,
   and access tokens via the `bws` CLI.
