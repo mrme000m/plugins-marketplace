@@ -30,7 +30,7 @@ ln -sf ~/bin/bw-plugin ~/bin/bwa
 - `bw` — Bitwarden Password Manager CLI (`brew install bitwarden-cli`)
 - `bws` — Bitwarden Secrets Manager CLI (optional, for `bws` commands)
 - macOS Keychain (for `auth setup` credential storage)
-- Go 1.26+ (for building from source)
+- Go 1.22+ (for building from source)
 
 ## First-Time Setup
 

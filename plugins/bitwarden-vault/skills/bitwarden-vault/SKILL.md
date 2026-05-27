@@ -14,7 +14,7 @@ license: Complete terms in LICENSE.txt
 
 ## Keywords
 
-bitwarden, password, vault, credential, secret, TOTP, 2FA, authentication code, inject secrets, env vars, export vault, backup passwords, bw, bwc, bws, keychain, auto-auth, api key, secrets manager
+bitwarden, password, vault, credential, secret, TOTP, 2FA, authentication code, inject secrets, env vars, export vault, backup passwords, bw, bws, keychain, auto-auth, api key, secrets manager
 
 ## Overview
 
@@ -28,7 +28,7 @@ Use `bw-plugin` — a multi-account Bitwarden CLI wrapper — to perform vault o
 | work | `bww` | nodewarden.hmmr.workers.dev |
 | api | `bwa` | vault.bitwarden.com |
 
-Target a specific account with `--account <name>` or by invoking the alias (`bwp`, `bww`, `bwa`). The active account is tracked in `~/.config/bw-plugin/state.json`.
+Target a specific account with `--account <name>` or by invoking the alias (`bwp`, `bww`, `bwa`). The active account is tracked via `active_id` in `~/.config/bw-plugin/accounts.json`.
 
 **Authentication model:**
 

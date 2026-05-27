@@ -104,7 +104,7 @@ The plugin bundles an MCP server (`bitwarden-mcp`) that provides vault tools via
 
 The plugin includes runtime security protections:
 
-- **`PreToolUse` credential-guard hook**: Blocks accidental `Edit|Write` operations to credential/session files (state.json, keychain, Bitwarden data dirs)
+- **`PreToolUse` credential-guard hook**: Blocks accidental `Edit|Write` operations to credential/session files (accounts.json, keychain, Bitwarden data dirs)
 - **`PostToolUse` audit-log hook**: Logs security-relevant `Bash` commands (auth, unlock, export, secret operations) to `~/.local/share/bw-plugin/audit.log`
 
 ## Plugin Structure
@@ -114,7 +114,8 @@ Each plugin follows the [Claude Code Plugin Format](https://code.claude.com/docs
 ```
 plugins/<plugin-name>/
 ├── .claude-plugin/
-│   ├── plugin.json          # Plugin manifest (required)
+│   └── plugin.json          # Plugin manifest (required)
+├── hooks/
 │   └── hooks.json           # Optional PreToolUse/PostToolUse hooks
 ├── skills/
 │   └── <skill-name>/

@@ -8,7 +8,6 @@
 This document defines how `bw-plugin` integrates with AI agent platforms:
 - **Claude Code** (Anthropic) — via `SKILL.md` + hooks
 - **Codex CLI** (OpenAI) — via MCP server
-- **Opencode CLI** — via TS plugin + hooks
 - **Gemini CLI** (Google) — via MCP server
 - **Any MCP-compatible client** (Cursor, Zed, etc.)
 
@@ -18,7 +17,6 @@ This document defines how `bw-plugin` integrates with AI agent platforms:
 |----------|-------------------|-----------|
 | Claude Code | SKILL.md + MCP server | Native skill triggers + universal tool access |
 | Codex CLI | MCP server | Codex adopted MCP as primary tool mechanism |
-| Opencode CLI | TS Plugin + MCP server | Plugin hooks for UI + MCP for tools |
 | Gemini CLI | MCP server | Gemini extensions wrap MCP servers |
 | Cursor/Zed/etc | MCP server | Universal compatibility |
 
@@ -28,8 +26,7 @@ This document defines how `bw-plugin` integrates with AI agent platforms:
 
 ### Transport
 
-- **Primary:** `stdio` (for local CLI integration)
-- **Secondary:** Streamable HTTP (for remote/IDE integration)
+- **stdio** (for local CLI integration)
 
 ### Tools (token-efficient, focused)
 
@@ -38,13 +35,13 @@ All vault tools support automatic authentication — no separate login/unlock st
 | Tool | Input | Output | Tokens |
 |------|-------|--------|--------|
 | `bitwarden_status` | `{account?}` | `{account, status, email}` | ~50 |
-| `bitwarden_auth_setup` | `{}` | `{success, accounts_configured}` | ~30 |
-| `bitwarden_auth_test` | `{}` | `{accounts: [{name, has_password, has_api_key, auth_ok}]}` | ~100 |
 | `bitwarden_search` | `{account?, query}` | `{items: [{name, username, uri}]}` | ~200 |
 | `bitwarden_get` | `{account?, item_name, field?}` | `{value}` | ~50 |
-| `bitwarden_totp` | `{account?, item_name}` | `{code}` | ~30 |
-| `bitwarden_inject` | `{account?, item_name}` | `{env_vars}` | ~100 |
-| `bitwarden_export` | `{account?, encrypt?}` | `{file_path}` | ~50 |
+| `bitwarden_login` | `{account?}` | `{status, session}` | ~100 |
+| `bitwarden_unlock` | `{account?}` | `{status}` | ~30 |
+| `bitwarden_lock` | `{account?}` | `{status}` | ~30 |
+| `bitwarden_logout` | `{account?}` | `{status}` | ~30 |
+| `bitwarden_list_accounts` | `{}` | `{accounts: [{name, email, server}]}` | ~100 |
 
 **Token efficiency principles applied:**
 - Each tool does ONE thing
@@ -69,7 +66,7 @@ All vault tools support automatic authentication — no separate login/unlock st
 
 The SKILL.md description field targets these conversation patterns:
 - "get password", "retrieve credential", "fetch API key"
-- "bitwarden", "bw", "bwc", "vault"
+- "bitwarden", "bw", "vault"
 - "TOTP", "2FA code", "authentication code"
 - "inject secrets", "env vars from vault"
 - "export vault", "backup passwords"
@@ -78,9 +75,8 @@ The SKILL.md description field targets these conversation patterns:
 
 | Hook | Event | Action |
 |------|-------|--------|
-| `SessionStart` | New session | Load active account, show status |
-| `PreToolUse` | Before file write | If path looks like `.env`, warn about secrets |
-| `Stop` | Session end | Lock all vaults |
+| `PreToolUse` | Before `Edit\|Write` | Guard credential/session files from accidental writes |
+| `PostToolUse` | After `Bash` | Log security-relevant commands to audit log |
 
 ## Codex CLI Integration
 
@@ -91,28 +87,6 @@ command = ["bw-plugin-mcp"]
 # Credentials from macOS Keychain (via bw-plugin auth setup)
 # or set env vars as fallback:
 # env = { BWP_CLIENTID = "", BWP_CLIENTSECRET = "" }
-```
-
-## Opencode CLI Plugin
-
-```typescript
-// .opencode/plugins/bw-plugin/index.ts
-export function bwPlugin() {
-  return {
-    tool: {
-      "execute.before": ({ input }) => {
-        if (input.tool === "write" && input.args.path?.endsWith('.env')) {
-          console.warn("⚠️ Writing to .env — consider using bw-plugin inject instead");
-        }
-      },
-    },
-    session: {
-      start: () => {
-        // Auto-check vault status on session start
-      },
-    },
-  };
-}
 ```
 
 ## Token Budget Analysis
@@ -129,5 +103,4 @@ export function bwPlugin() {
 
 1. **P0:** MCP server (stdio transport, 8 tools with auto-auth)
 2. **P1:** Updated Claude Code SKILL.md (auto-triggering + hooks)
-3. **P2:** Opencode TS plugin
-4. **P3:** Streamable HTTP transport for remote access
+3. **P2:** Streamable HTTP transport for remote access

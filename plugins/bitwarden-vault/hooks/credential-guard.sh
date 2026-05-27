@@ -4,8 +4,8 @@
 TARGET="${CLD_EDIT_TARGET:-${CLD_WRITE_FILE:-}}"
 
 case "$TARGET" in
-  *bw-plugin/state.json*|
-  *bw-plugin/config.json*|
+  *bw-plugin/accounts.json*|
+  *bw-plugin/.env*|
   *.Bitwarden*data*|
   *keychain.plist*|
   *security find-generic-password*)

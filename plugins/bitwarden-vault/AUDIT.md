@@ -1,7 +1,7 @@
 # bw-plugin — Audit Report
 
 **Date:** 2026-05-27
-**Scope:** `/Volumes/ExMac/code/tools/plugins/plugins/bitwarden-vault/src/` (10 files)
+**Scope:** `/Volumes/ExMac/code/tools/plugins/plugins/bitwarden-vault/src/` (11 files)
 **Reference:** [Bitwarden CLI](https://bitwarden.com/help/cli/), [Secrets Manager CLI](https://bitwarden.com/help/secrets-manager-cli/)
 
 ---
@@ -18,18 +18,19 @@
 
 | File | Lines | Purpose | Status |
 |------|-------|---------|--------|
-| `main.go` | ~555 | CLI entry point, argument parsing, command dispatch | Complete |
-| `commands.go` | ~620 | Core vault operations (search, inject, export, etc.) | Complete |
-| `config.go` | ~495 | Account registry, server-aware IDs, env helpers | Complete |
-| `core.go` | ~390 | bw/bws execution, API key login, unlock, item/folder helpers | Complete |
-| `auth.go` | ~350 | Keychain storage, API key auto-auth, credential resolution | Complete |
-| `cmd_accounts.go` | ~560 | Account lifecycle (add/remove/edit/info/switch) | Complete |
-| `cmd_xfer.go` | ~195 | Cross-account copy/move/share-list | Complete |
-| `cmd_bwssetup.go` | ~300 | BWS profile setup with keychain storage | Complete |
-| `cmd_discover.go` | ~260 | Vault-based account discovery from `bw-accounts` folders | Complete |
+| `main.go` | ~586 | CLI entry point, argument parsing, command dispatch | Complete |
+| `commands.go` | ~779 | Core vault operations (search, inject, export, etc.) | Complete |
+| `config.go` | ~490 | Account registry, server-aware IDs, env helpers | Complete |
+| `core.go` | ~384 | bw/bws execution, API key login, unlock, item/folder helpers | Complete |
+| `auth.go` | ~591 | Keychain storage, API key auto-auth, credential resolution | Complete |
+| `cmd_accounts.go` | ~520 | Account lifecycle (add/remove/edit/info/switch) | Complete |
+| `cmd_xfer.go` | ~227 | Cross-account copy/move/share-list | Complete |
+| `cmd_bwssetup.go` | ~320 | BWS profile setup with keychain storage | Complete |
+| `cmd_discover.go` | ~370 | Vault-based account discovery from `bw-accounts` folders | Complete |
+| `cmd_data.go` | ~360 | Data export, schema reference, and summary utilities | Complete |
 | `crypto.go` | ~313 | AES-256-CBC encryption/decryption, PBKDF2, OpenSSL compat | Complete |
 
-**Total:** ~4,000 lines of Go code, fully compilable single binary.
+**Total:** ~4,940 lines of Go code, fully compilable single binary.
 
 ---
 
@@ -120,7 +121,7 @@ ensureSession(account)
 | `account info` | Show metadata, capabilities, credential status |
 | `account edit` | Edit account fields interactively |
 | `account switch` | Switch active account |
-| `account discover` | Scan vault for `bw-*` folders and auto-register accounts |
+| `account discover` / `account sync` | Scan vault for `bw-*` folders and auto-register accounts |
 
 ---
 

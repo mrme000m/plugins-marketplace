@@ -188,7 +188,7 @@ BWP_CLIENTSECRET=xxx...
 bw-plugin auth setup
 ```
 
-State (active account only) is stored in `~/.config/bw-plugin/state.json`. **Session keys and credentials are never persisted** — credentials live in macOS Keychain, sessions are derived on-demand.
+State (active account only) is stored in `~/.config/bw-plugin/accounts.json`. **Session keys and credentials are never persisted** — credentials live in macOS Keychain, sessions are derived on-demand.
 
 ## Cross-Compilation
 
@@ -207,7 +207,7 @@ make build-windows # Windows AMD64
 - **BW_SESSION stripping:** `bwEnv()` strips any existing `BW_SESSION` before running commands, preventing cross-account leakage.
 - **Timeout-protected auth:** All non-interactive login attempts have 30s timeouts with stdin closed to prevent 2FA prompt hangs.
 - **API key login:** API keys bypass device verification entirely, making auth reliable and non-interactive.
-- **State file** (`~/.config/bw-plugin/state.json`) tracks only `active_account` — no credentials. `chmod 0600`.
+- **Account registry** (`~/.config/bw-plugin/accounts.json`) tracks only `active_id` — no credentials. `chmod 0600`.
 - **Account directories** created with `chmod 0700`.
 - `bws run` defaults to `--no-inherit-env` to prevent shell env leakage.
 - PIN-encrypted exports use AES-256-CBC with PBKDF2 and 1,000,000 iterations.

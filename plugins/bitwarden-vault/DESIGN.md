@@ -44,39 +44,9 @@ type Account struct {
 ✓ API credentials saved to Keychain
 ```
 
-### Phase 3: Auto-Auth Test
-```
-→ Testing auto-auth flow...
-→ Logging into vault-bitwarden-com-misterme00-icloud-com...
-✓ Logged in (API key)
-✓ Unlocked vault
-✓ Session: a1b2c3d4...
-```
-
-### Phase 4: Secrets Manager Link (if applicable)
-```
-→ Checking organization for Secrets Manager...
-✓ Org "dev" has Secrets Manager enabled
-
-?  Link a Secrets Manager machine account?
-    1) Yes — list available machine accounts
-    2) No — skip
-?  Choice [1]: 1
-
-→ Available machine accounts:
-    1) CI/CD Pipeline (read: Production, Staging)
-    2) Local CLI (read: Default)
-?  Select machine account [1]: 2
-
-→ Generating access token for "Local CLI"...
-✓ Access token created: 0.xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.xxxxxxxxxx:xxxxxxxxxx
-⚠ Copy this token NOW — it won't be shown again
-
-?  Store BWS access token in keychain? [Y/n]: Y
-✓ Stored as bws.vault-bitwarden-com-misterme00-icloud-com.token
-
-✓ Account setup complete!
-```
+After setup completes, the tool prints next-step suggestions:
+- Run `bw-plugin auth login` to authenticate
+- Run `bw-plugin sm-link` to link a Secrets Manager machine account (if applicable)
 
 ## Credential Storage Layout
 
@@ -98,9 +68,9 @@ type Account struct {
 
 ## Credential Resolution Order
 
-1. **macOS Keychain** (primary — set via `bw-plugin auth setup`)
+1. **Environment variables** (`BW_CLIENTID`/`BW_CLIENTSECRET` or `<PREFIX>_CLIENTID`/`<PREFIX>_CLIENTSECRET`)
 2. **`.env` file** (`~/.config/bw-plugin/.env`)
-3. **Environment variables** (`BW_CLIENTID`/`BW_CLIENTSECRET` or `<PREFIX>_CLIENTID`/`<PREFIX>_CLIENTSECRET`)
+3. **macOS Keychain** — set via `bw-plugin auth setup`
 4. **Interactive setup prompt** — clear error with command to run `bw-plugin auth setup`
 
 ## Auto-Auth Flow (Runtime)
@@ -133,7 +103,7 @@ bw-plugin move "Stripe Key" \
 
 | Command | Purpose |
 |---------|---------|
-| `bw-plugin account add` | Full interactive setup with SM link |
-| `bw-plugin account link-sm <id>` | Link Secrets Manager to existing account |
+| `bw-plugin account add` | Full interactive setup with credential storage |
+| `bw-plugin sm-link <id>` | Link Secrets Manager to existing account |
 | `bw-plugin copy <item> --from <id> --to <id>` | Cross-account copy |
 | `bw-plugin move <item> --from <id> --to <id>` | Cross-account move |
