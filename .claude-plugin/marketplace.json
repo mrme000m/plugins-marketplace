@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "plugins-marketplace",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "A standardized marketplace for agent skills and plugins featuring progressive discovery, security hooks, MCP server integrations, and skill-oriented architecture",
   "owner": {
     "name": "mrme000m",
@@ -80,6 +80,21 @@
         "gmail",
         "icloud",
         "outlook"
+      ]
+    },
+    {
+      "name": "pplx-plugin",
+      "description": "Perplexity AI integration plugin with research, space management, thread workflows, and CLI tools for knowledge curation",
+      "source": "./plugins/pplx-plugin",
+      "category": "ai",
+      "tags": [
+        "perplexity",
+        "ai-research",
+        "space-management",
+        "threads",
+        "knowledge-curation",
+        "cli",
+        "skills"
       ]
     }
   ]
