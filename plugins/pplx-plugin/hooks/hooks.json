@@ -1,0 +1,36 @@
+{
+  "hooks": [
+    {
+      "name": "pplx-readiness-check",
+      "hook": "SessionStart",
+      "prompt": "At session start, do a lightweight Perplexity readiness check without making live searches.\n\n1. Prefer MCP if mcp__perplexity__ tools are available. If available, note that MCP is ready and list the relevant slash commands: /pplx-research, /pplx-space, /pplx-threads, /pplx-upload, /pplx-settings, /pplx-cli-check.\n2. If MCP is unavailable, check whether the pplx CLI is likely available. If shell access is available, use a no-network command such as 'command -v pplx' or 'python3 -c \"import pplx\"'. Do not run 'pplx search' automatically.\n3. If neither path is detected, provide one concise setup hint: run /pplx-cli-check or bash <plugin>/scripts/pplx-setup.sh.\n4. Keep output under 8 lines and avoid noisy diagnostics."
+    },
+    {
+      "name": "pplx-cost-and-mode-guard",
+      "hook": "PreToolUse",
+      "tool": "mcp__perplexity__search|mcp__perplexity__search_in_space",
+      "prompt": "Before a Perplexity search runs, check mode and token efficiency.\n\n1. Default mode should be auto unless the user explicitly requested pro, reasoning, or deep_research.\n2. For simple verification, set or suggest answer_only=true.\n3. Use Space search when the query is project-specific and a relevant Space is already known.\n4. If a paid mode is about to be used without explicit user intent, recommend downgrading to auto or asking for confirmation.\n5. Do not block the tool call; this is guidance only."
+    },
+    {
+      "name": "pplx-research-intent-nudge",
+      "hook": "UserPromptSubmit",
+      "prompt": "If the user asks about latest/current APIs, dependency versions, recent changes, unfamiliar libraries, external documentation, or a claim that needs verification, add a one-line suggestion that Perplexity grounding may help.\n\nDo not suggest Perplexity when the answer should come from the local codebase, when the topic is stable language syntax, or when Perplexity has already been used for the same topic in the current session."
+    },
+    {
+      "name": "pplx-dependency-change-nudge",
+      "hook": "PostToolUse",
+      "tool": "Write|Edit|MultiEdit",
+      "prompt": "After edits to dependency manifests or framework configuration files (package.json, pnpm-lock.yaml, requirements.txt, pyproject.toml, go.mod, Cargo.toml, next.config, tailwind.config, wrangler config, etc.), suggest one concise Perplexity verification step if external API freshness matters.\n\nExamples: /pplx-research \"<library> <version> breaking changes\" or /pplx-upload <manifest> to the project Space. Do not produce suggestions for unrelated local-only edits."
+    },
+    {
+      "name": "pplx-preserve-context",
+      "hook": "PreCompact",
+      "prompt": "Before compaction, preserve Perplexity continuity information if present: backend_uuid values, Space slugs/UUIDs, thread slugs, active research topic, chosen model/mode, and files uploaded. Output only a compact bullet list if any are found; otherwise output nothing."
+    },
+    {
+      "name": "pplx-usage-summary",
+      "hook": "SessionEnd",
+      "prompt": "At session end, summarize Perplexity usage only if Perplexity MCP tools, pplx CLI commands, or plugin scripts were used. Include searches, Spaces touched, uploaded files, thread slugs, and paid modes used. If there was no Perplexity activity, output nothing. Keep it under 6 lines."
+    }
+  ]
+}

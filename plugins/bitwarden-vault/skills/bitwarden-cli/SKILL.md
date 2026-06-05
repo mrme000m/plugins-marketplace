@@ -19,11 +19,11 @@ bw, bitwarden, vault, item, login, password, folder, collection, organization, s
 
 ## Overview
 
-Use the `bw` CLI (via `bw-plugin` for multi-account context) to fully manage Bitwarden vault objects. All commands require an authenticated session. When using `bw-plugin`, session management is automatic. For raw `bw` commands, ensure `BW_SESSION` is exported.
+Use the `bw` CLI directly to fully manage Bitwarden vault objects. All commands require an authenticated session.
 
-**Account targeting:** Use `--account <name>` with `bw-plugin` or invoke via alias (`bwp`, `bww`, `bwa`). Raw `bw` commands require the correct `BITWARDENCLI_APPDATA_DIR` in the environment.
+**Single account:** Personal Premium (`misterme00@icloud.com`, `vault.bitwarden.com`).
 
-**Session requirement:** Most commands need an active session. `bw-plugin` auto-unlocks via API key auth + stored master password. Raw `bw` requires `BW_SESSION`.
+**Session requirement:** Most commands need an active session. Check with `bw status`. If unauthenticated, agents auto-login via API key. If locked, unlock with master password.
 
 **JSON workflow:** The `bw` CLI uses a pipe-based JSON workflow: `get template` -> `jq` mutate -> `bw encode` -> `create`/`edit`. Always use this pattern for programmatic item creation/editing.
 
@@ -31,7 +31,7 @@ Use the `bw` CLI (via `bw-plugin` for multi-account context) to fully manage Bit
 
 | Task | Command |
 |------|---------|
-| Get session (raw bw) | `export BW_SESSION=$(bw-plugin unlock --raw)` |
+| Get session | `export BW_PASSWORD=$(security find-generic-password -a "bw-master-password" -w) && export BW_SESSION=$(bw unlock --passwordenv BW_PASSWORD --raw) && unset BW_PASSWORD` |
 | List all items | `bw list items` |
 | List items in folder | `bw list items --folderid <id>` |
 | List items in collection | `bw list items --collectionid <id>` |
@@ -470,7 +470,6 @@ Edu mail items follow a parallel pattern in the `Edu` folder (or `Edu/Mail` subf
 - **Test queries before destructive operations.** Use `bw get` or `bw list` to verify the target object before editing or deleting.
 - **Trash vs permanent deletion.** Default `delete` sends to trash (recoverable for 30 days). Use `--permanent` only when absolutely certain.
 - **Organization IDs required.** For org-collection operations, always include `--organizationid`.
-- **Account isolation.** When using raw `bw` (not via `bw-plugin`), ensure `BITWARDENCLI_APPDATA_DIR` is set to the correct account directory.
-- **Session management.** With `bw-plugin`, session is auto-derived. With raw `bw`, export `BW_SESSION` before operations.
+- **Session management.** With `bw`, check `bw status` first. If unauthenticated, agents auto-login via API key. If locked, unlock with master password.
 - **JSON output for scripting.** Append `| jq ...` to `bw list` and `bw get` commands for programmatic processing.
 - **Combine filters carefully.** Multiple filters in `bw list` use OR logic. Combining filter + search uses AND logic.
